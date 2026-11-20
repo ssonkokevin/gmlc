@@ -24,6 +24,9 @@ gmlc:
   default-tenant-id: 1
   bundled-capability-profile: classpath:location/capability-profile.tenant-1.json
   version: 0.1.0
+  # Guards client registration. Blank disables the admin surface entirely; set
+  # it per deployment, never in a committed file.
+  admin-key: ${GMLC_ADMIN_KEY:}
 
 logging:
   level:

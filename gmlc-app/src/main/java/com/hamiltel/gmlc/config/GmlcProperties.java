@@ -10,10 +10,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param bundledCapabilityProfile profile loaded when the database has no
  *                                 row for the tenant
  * @param version                  reported by the health endpoint
+ * @param adminKey                 operator key that guards client registration;
+ *                                 blank disables the admin surface
  */
 @ConfigurationProperties(prefix = "gmlc")
 public record GmlcProperties(
         long defaultTenantId,
         String bundledCapabilityProfile,
-        String version) {
+        String version,
+        String adminKey) {
 }

@@ -17,10 +17,11 @@ The split is recorded with its reasoning in the core repository under
 | Area | State |
 |---|---|
 | Spring Boot service, PostgreSQL, Flyway | **Built and tested** on this host |
-| `/v1/health`, `/v1/capabilities` | **Built and tested** |
-| Tenant-aware schema (tenants, clients, consent, cells, requests, results, CDRs, audit) | **Built**; migrations apply against PostgreSQL 17 in tests |
+| `/v1/health`, `/v1/capabilities`, `/v1/clients/me` | **Built and tested** |
+| Tenant-aware schema (tenants, clients, consent, cells, requests, results, CDRs, audit, usage) | **Built**; migrations apply against PostgreSQL 17 in tests |
+| Client registration, API keys, address allowlists | **Built and tested** |
+| Per-second and per-day quotas, audited refusals | **Built and tested** |
 | Le location API (`POST /v1/locations`, ...) | Not yet - next work package |
-| Client authentication, quotas | Not yet |
 | MAP (ATI, PSI, SRILCS, PSL, SLR) | Not yet |
 | Diameter (SLh RIR, SLg PLR/PLA, Sh UDR) | Not yet |
 | Dashboard | Not yet |
@@ -31,8 +32,28 @@ Nothing in this repository has talked to a real operator network.
 ## Endpoints today
 
 ```
-GET /v1/health         liveness, database, capability profile validity
-GET /v1/capabilities   the tenant's capability profile (tenant 1 until auth exists)
+GET  /v1/health          liveness, database, capability profile validity   (open)
+GET  /v1/capabilities    the tenant's capability profile                   (API key)
+GET  /v1/clients/me      the calling client's own configuration            (API key)
+POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
+```
+
+API keys are presented as `Authorization: Bearer gk_...` or `X-API-Key`. The
+registry keeps only the SHA-256 hash, and the plaintext is shown once, at
+registration. Missing or unknown keys answer 401; a client outside its address
+allowlist answers 403; an exhausted quota answers 429 with `Retry-After`
+(one second for the burst window, the time to UTC midnight for the daily one).
+Every refusal is written to `audit_event` with the reason and no coordinates.
+
+`POST /v1/admin/clients` requires `GMLC_ADMIN_KEY` from the environment. With
+no key configured the endpoint answers 404, so an unfinished deployment cannot
+mint credentials. Purposes are restricted to the operator's list - law
+enforcement interception is not one of them.
+
+```bash
+curl -s -X POST localhost:8082/v1/admin/clients \
+  -H "X-Admin-Key: $GMLC_ADMIN_KEY" -H 'content-type: application/json' \
+  -d '{"name":"ops-console","purposes":["FLEET_MANAGEMENT"],"ratePerSecond":5,"ratePerDay":1000}'
 ```
 
 The capability profile is the promise the API makes: which methods each RAT
@@ -74,7 +95,10 @@ java -jar gmlc-app/target/gmlc.jar
 
 ```
 gmlc-app/src/main/java/com/hamiltel/gmlc/
+├── admin/         client registration (admin key)
+├── audit/         append-only trail, no coordinates
 ├── capability/    profile model rules, loader, controller
+├── client/        API keys, authentication, allowlists, quotas, request filter
 ├── config/        deployment properties
 ├── health/        health endpoint
 └── web/           error mapping to RFC 7807 problems
