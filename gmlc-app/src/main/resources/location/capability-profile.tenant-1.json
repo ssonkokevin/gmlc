@@ -1,0 +1,60 @@
+{
+  "tenant_id": 1,
+  "version": "1.0.0",
+  "updated_at": "2026-11-21T00:00:00Z",
+  "rat": {
+    "GSM": {
+      "serving_node": "MSC/SGSN",
+      "engine": null,
+      "methods": ["CELL_ID"],
+      "method_status": { "CELL_ID": "PLANNED" },
+      "lpp": false,
+      "lppa": false,
+      "nrppa": false,
+      "prs_configured": false,
+      "notes": "Cell-ID only (D9). Requires the cell database and MAP ATI or PSI."
+    },
+    "UMTS": {
+      "serving_node": "MSC/SGSN",
+      "engine": null,
+      "methods": ["CELL_ID"],
+      "method_status": { "CELL_ID": "PLANNED" },
+      "lpp": false,
+      "lppa": false,
+      "nrppa": false,
+      "prs_configured": false,
+      "notes": "Cell-ID only (D9)."
+    },
+    "LTE": {
+      "serving_node": "MME",
+      "engine": "E_SMLC",
+      "methods": ["CELL_ID", "A_GNSS"],
+      "method_status": { "CELL_ID": "PLANNED", "A_GNSS": "PLANNED" },
+      "lpp": true,
+      "lppa": false,
+      "nrppa": false,
+      "prs_configured": false,
+      "trp_count": 0,
+      "notes": "Phase 2: our own MME LCS function, LCS-AP over SLs, A-GNSS over LPP to the UE. No LPPa on the operator's eNBs, so no E-CID or OTDOA. LPP is claimed once the Phase 2 end-to-end test passes."
+    },
+    "NR": {
+      "serving_node": "AMF",
+      "engine": "LMF",
+      "methods": ["CELL_ID"],
+      "method_status": { "CELL_ID": "PLANNED" },
+      "lpp": false,
+      "nrppa": false,
+      "lppa": false,
+      "prs_configured": false,
+      "trp_count": 0,
+      "notes": "Phase 3. The deployed AMF image has no LCS function, so only cell-ID from UECM data is possible today."
+    }
+  },
+  "ati_allowed": true,
+  "psi_allowed": false,
+  "active_location_paging": false,
+  "emergency_override": false,
+  "max_accuracy_granted_m": 5000,
+  "plmns": [{ "mcc": "001", "mnc": "01" }],
+  "notes": "Lab profile for tenant 1. Every PLANNED method is unproven until its phase exit test passes; do not quote these numbers in a commercial document."
+}
