@@ -22,11 +22,12 @@ The split is recorded with its reasoning in the core repository under
 | Client registration, API keys, address allowlists | **Built and tested** |
 | Per-second and per-day quotas, audited refusals | **Built and tested** |
 | Consent: grant, read, revoke, expiry, emergency override | **Built and tested** |
-| Le location API, request state machine, CDRs | **Built and tested**; answers cell-ID from the cell plan when a Diameter peer is configured, fails closed otherwise |
+| Le location API, request state machine, CDRs | **Built and tested**; answers cell-ID from the cell plan over Diameter or MAP, fails closed otherwise |
 | Authoritative cell database, coverage geometry, CSV import with dry-run | **Built and tested** |
 | Diameter SLh RIR and SLg PLR/PLA clients, CER/CEA, TCP framing | **Built and tested**; fail closed until a peer is configured |
-| MAP codecs (SRILCS, PSL, ATI), GAD circles, SCCP and M3UA framing | **Built and tested**; not yet wired to the Le request path |
-| MAP service location (SRILCS then PSL/ATI), SLR | Not yet |
+| MAP codecs (SRILCS, PSL, ATI), GAD circles, SCCP and M3UA framing | **Built and tested** |
+| MAP service location: SRILCS then PSL at the MSC/SGSN, or ATI for an EPS subscriber | **Built and tested**; selected with `gmlc.location.transport=MAP` |
+| MAP SLR (network-initiated service response) | Not yet |
 | Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
 | Dashboard | Not yet |
 | Container build | Written, **unverified** - no Docker on the build host |
@@ -239,9 +240,21 @@ speaks that stack itself too - still no vendor SS7 library:
 
 An exchange sends one unitdata message and returns the next one addressed to
 the gateway; correlating an answer with its dialogue is TCAP's job (by
-transaction identifier). The transport is not connected to the Le request
-path yet: cell-ID answers still come from Diameter SLh/SLg, and this codec
-set is the foundation for the MAP locator.
+transaction identifier). `map/MapClient` does that and rejects an answer from
+another dialogue, application context or operation rather than reading it as a
+location. `location/MapCellLocator` drives the sequence: SRILCS at the HLR for
+the serving node, then PSL at that MSC or SGSN (addressed by the E.164 number
+the HLR named), or ATI at the HLR when the subscriber is on an MME, because an
+MME is not a MAP PSL peer.
+
+The cell that comes back is resolved in the operator's plan, so the answer
+keeps the plan's radius, its quality as confidence, and the network's age. A
+LAC or TAC in the answer makes the plan lookup the exact canonical identity,
+so a cell code reused in another area is not mistaken for this one. A MAP
+error keeps its TS 29.002 name (`ABSENT_SUBSCRIBER`, `UNAUTHORIZED_LCS_CLIENT`,
+`POSITION_METHOD_FAILURE`, ...). An answer that carries a circle but no cell is
+reported as no source: the engine column says the plan produced the position,
+so a bare GAD circle is not attributed to it.
 
 Configuration is the `gmlc.m3ua` block. Point codes belong to the operator,
 so none is committed: with `GMLC_M3UA_LOCAL_PC` zero, or `GMLC_M3UA_HOST`
@@ -249,6 +262,17 @@ empty, the link is disabled and every MAP exchange fails closed with
 `SIGNALLING_NOT_CONFIGURED`. `GMLC_M3UA_LOCAL_GT` adds the gateway's own
 E.164 number to the calling party; without it the calling party is the point
 code and GMLC subsystem number 145.
+
+The signalling face is a deployment decision, not a fallback race:
+`GMLC_LOCATION_TRANSPORT=MAP` builds the MAP locator, `DIAMETER` (the default)
+builds the SLh/SLg one, and exactly one `LocationLocator` exists in the
+context. `GMLC_MAP_MLC_NUMBER` is the gateway's own E.164 LCS number carried in
+the SRILCS and PSL arguments; blank leaves MAP disabled and a MAP-selected
+deployment answers `NO_LCS_SOURCE` instead of signalling. With
+`GMLC_MAP_HLR_PC` zero, SRILCS and ATI are routed on subsystem 6 at the M3UA
+peer's point code; a non-zero value names the HLR's point code directly.
+Choosing between an HLR face and an HSS face per subscriber is not built: a
+mixed-network deployment must not enable both at once.
 
 ## The cell database
 

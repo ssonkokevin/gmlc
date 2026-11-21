@@ -33,3 +33,13 @@ against 17 with a warning; the compose file pins `postgres:16` for that reason.
 Docker is not installed on this machine. `Dockerfile` and `docker-compose.yml`
 are written but have never been built or run here - treat them as unverified
 until they are.
+
+## The MAP face has never seen a real HLR
+
+`MapClient` and `MapCellLocator` are tested against a loopback `M3uaTransport`
+that parses the Begin, answers with a hand-built MAP result and checks the
+called and calling addresses. That proves the dialogue shape and the codes the
+gateway reports; it does not prove interoperability with an operator HLR, MSC
+or SGSN. The lab run needs an STP reachable over M3UA/TCP (see the TCP, not
+SCTP, limit in the README), a test point code, `GMLC_MAP_MLC_NUMBER`, and
+`GMLC_LOCATION_TRANSPORT=MAP`.

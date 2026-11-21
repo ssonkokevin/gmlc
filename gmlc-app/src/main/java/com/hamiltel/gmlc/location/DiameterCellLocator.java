@@ -8,7 +8,6 @@ import com.hamiltel.gmlc.diameter.SignallingException;
 import com.hamiltel.gmlc.diameter.SlgClient;
 import com.hamiltel.gmlc.diameter.SlhClient;
 import com.hamiltel.gmlc.diameter.SubscriberId;
-import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,8 +20,10 @@ import java.util.Optional;
  * <p>The answer is only as good as the plan entry. A cell with no radius has
  * no honest uncertainty, and a cell that is absent from the plan has no
  * position at all; both are reported as failures rather than approximated.
+ *
+ * <p>Instances are built by {@code LocationConfiguration}, which chooses this
+ * locator or the MAP one for the deployment.
  */
-@Component
 public class DiameterCellLocator implements LocationLocator {
 
     /** Neutral confidence for a plan row nobody has qualified. */

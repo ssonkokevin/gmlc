@@ -33,4 +33,17 @@ public class CellPlanSelector implements CellSelector {
         }
         return Optional.of(rows.get(0));
     }
+
+    /**
+     * With the LAC or TAC present the canonical identity is exact, so a cell
+     * code reused in another area is not mistaken for this one.
+     */
+    @Override
+    public Optional<CellRepository.CellRow> selectInArea(long tenantId, String rat, String mcc,
+                                                         String mnc, String areaCode,
+                                                         String cellCode) {
+        CellIdentity.Rat technology = CellIdentity.Rat.of(rat);
+        return cells.find(tenantId, technology,
+                CellIdentity.compose(technology, mcc, mnc, areaCode, cellCode));
+    }
 }

@@ -35,6 +35,10 @@ gmlc:
   emergency-override: ${GMLC_EMERGENCY_OVERRIDE:false}
   # The name an MME shows its privacy rules as the requesting LCS client.
   lcs-client-name: ${GMLC_LCS_CLIENT_NAME:hamiltel-gmlc}
+  # Which interface answers a Le request. DIAMETER uses SLh/SLg towards an HSS
+  # and an MME; MAP uses the SS7 face towards the HLR, MSC and SGSN below.
+  location:
+    transport: ${GMLC_LOCATION_TRANSPORT:DIAMETER}
   # Diameter SLh/SLg towards the HSS and the MME. An empty peer-host leaves the
   # clients in the fail-closed "not configured" state: requests end with
   # SIGNALLING_NOT_CONFIGURED rather than a guessed position.
@@ -58,6 +62,13 @@ gmlc:
     local-global-title: ${GMLC_M3UA_LOCAL_GT:}
     network-indicator: ${GMLC_M3UA_NI:2}
     timeout-ms: ${GMLC_M3UA_TIMEOUT_MS:5000}
+  # The MAP face's own identity. mlc-number is the gateway's E.164 LCS number
+  # as the HLR and serving node see it; a blank value leaves MAP disabled and
+  # every exchanged request fails closed. hlr-point-code zero routes on SSN 6
+  # at the M3UA peer's point code.
+  map:
+    mlc-number: ${GMLC_MAP_MLC_NUMBER:}
+    hlr-point-code: ${GMLC_MAP_HLR_PC:0}
 
 logging:
   level:
