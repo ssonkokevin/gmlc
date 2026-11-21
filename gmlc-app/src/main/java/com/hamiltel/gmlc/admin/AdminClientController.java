@@ -15,8 +15,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +45,14 @@ public class AdminClientController {
     private final ApiClientRepository clients;
     private final AuditTrail audit;
     private final GmlcProperties properties;
+    private final AdminKeyGuard guard;
 
     public AdminClientController(ApiClientRepository clients, AuditTrail audit,
-                                 GmlcProperties properties) {
+                                 GmlcProperties properties, AdminKeyGuard guard) {
         this.clients = clients;
         this.audit = audit;
         this.properties = properties;
+        this.guard = guard;
     }
 
     @PostMapping("/clients")
@@ -60,7 +60,7 @@ public class AdminClientController {
             @RequestHeader(value = "X-Admin-Key", required = false) String adminKey,
             @Valid @RequestBody ClientRegistrationRequest request) {
 
-        requireAdmin(adminKey);
+        guard.require(adminKey);
 
         List<String> purposes = List.copyOf(new LinkedHashSet<>(request.purposes()));
         List<String> unknown = purposes.stream().filter(p -> !ALLOWED_PURPOSES.contains(p)).toList();
@@ -96,23 +96,6 @@ public class AdminClientController {
                 "store this key now; it is not retrievable later"));
     }
 
-    private void requireAdmin(String presented) {
-        String configured = properties.adminKey();
-        if (configured == null || configured.isBlank()) {
-            throw new AdminApiDisabledException();
-        }
-        if (presented == null || !MessageDigest.isEqual(
-                presented.getBytes(StandardCharsets.UTF_8),
-                configured.getBytes(StandardCharsets.UTF_8))) {
-            throw new AdminKeyRejectedException();
-        }
-    }
-
-    public static class AdminApiDisabledException extends RuntimeException {
-    }
-
-    public static class AdminKeyRejectedException extends RuntimeException {
-    }
 
     public static class PurposeNotAllowedException extends RuntimeException {
 

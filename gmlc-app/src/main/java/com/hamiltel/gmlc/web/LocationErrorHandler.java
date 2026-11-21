@@ -1,6 +1,10 @@
 package com.hamiltel.gmlc.web;
 
+import com.hamiltel.gmlc.admin.AdminApiDisabledException;
 import com.hamiltel.gmlc.admin.AdminClientController;
+import com.hamiltel.gmlc.admin.AdminKeyRejectedException;
+import com.hamiltel.gmlc.cell.CellNotFoundException;
+import com.hamiltel.gmlc.cell.InvalidCellException;
 import com.hamiltel.gmlc.capability.CapabilityProfileUnavailableException;
 import com.hamiltel.gmlc.capability.UnknownTenantException;
 import com.hamiltel.gmlc.consent.ConsentNotFoundException;
@@ -80,6 +84,25 @@ public class LocationErrorHandler {
         return problem;
     }
 
+    @ExceptionHandler(CellNotFoundException.class)
+    public ProblemDetail cellNotFound(CellNotFoundException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                "no such cell");
+        problem.setTitle("Not found");
+        problem.setProperty("rat", e.rat());
+        problem.setProperty("cellIdentity", e.cellIdentity());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidCellException.class)
+    public ProblemDetail invalidCell(InvalidCellException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "one or more cell fields are invalid");
+        problem.setTitle("Invalid cell");
+        problem.setProperty("fields", e.fields());
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail invalidBody(MethodArgumentNotValidException e) {
         Map<String, String> fields = new LinkedHashMap<>();
@@ -127,16 +150,16 @@ public class LocationErrorHandler {
         return problem;
     }
 
-    @ExceptionHandler(AdminClientController.AdminApiDisabledException.class)
-    public ProblemDetail adminDisabled(AdminClientController.AdminApiDisabledException e) {
+    @ExceptionHandler(AdminApiDisabledException.class)
+    public ProblemDetail adminDisabled(AdminApiDisabledException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.NOT_FOUND, "the admin API is not enabled on this deployment");
         problem.setTitle("Not found");
         return problem;
     }
 
-    @ExceptionHandler(AdminClientController.AdminKeyRejectedException.class)
-    public ProblemDetail adminRejected(AdminClientController.AdminKeyRejectedException e) {
+    @ExceptionHandler(AdminKeyRejectedException.class)
+    public ProblemDetail adminRejected(AdminKeyRejectedException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNAUTHORIZED, "a valid admin key is required");
         problem.setTitle("Unauthorised");

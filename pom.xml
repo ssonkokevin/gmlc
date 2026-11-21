@@ -19,6 +19,11 @@
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <!-- Spring MVC resolves @PathVariable/@RequestParam names by reflection,
+             so the parameter names must reach the class files. Without this,
+             every named argument needs a literal name and one omission is a 500
+             at runtime rather than a compile error. -->
+        <maven.compiler.parameters>true</maven.compiler.parameters>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.3.4</spring-boot.version>
         <!-- The offline repository on the build host has 4.2.0 primed only.

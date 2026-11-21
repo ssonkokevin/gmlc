@@ -23,6 +23,7 @@ The split is recorded with its reasoning in the core repository under
 | Per-second and per-day quotas, audited refusals | **Built and tested** |
 | Consent: grant, read, revoke, expiry, emergency override | **Built and tested** |
 | Le location API, request state machine, CDRs | **Built and tested**; fails closed with `NO_LCS_SOURCE` until a location client exists |
+| Authoritative cell database, coverage geometry, CSV import with dry-run | **Built and tested** |
 | MAP (ATI, PSI, SRILCS, PSL, SLR) | Not yet |
 | Diameter (SLh RIR, SLg PLR/PLA, Sh UDR) | Not yet |
 | Dashboard | Not yet |
@@ -46,7 +47,12 @@ DELETE /v1/consents/{id} revoke it                                         (API 
 
 GET  /v1/cdrs            the caller's own completed records                (API key)
 
+GET  /v1/cells?rat=&area=      list cells, paged, no geometry rings        (API key)
+GET  /v1/cells/{rat}/{id}      one cell with its coverage geometry         (API key)
+
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
+POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
+POST /v1/admin/cells/import  CSV import, dry-run unless ?dryRun=false     (X-Admin-Key)
 ```
 
 API keys are presented as `Authorization: Bearer gk_...` or `X-API-Key`. The
@@ -121,6 +127,62 @@ HMAC-SHA256, so a database copy cannot be matched against a list of known
 numbers. Without it the reference is unkeyed SHA-256 and every start logs a
 warning.
 
+## The cell database
+
+The operator's cell plan decides where a cell-ID answer points, so the gateway
+owns it: one store, one import format, one validation report. A cell is
+identified by its RAT and a canonical string, `mcc-mnc-area-cell`, where the
+area is the LAC for GSM/UMTS and the TAC for LTE/NR; leading zeros are stripped
+so `001-01-0101-0001` and `001-01-101-1` are the same cell.
+
+Reads need only an API key. Writes are operator actions under
+`X-Admin-Key`, at `/v1/admin/cells`, because an LBS client that could edit the
+plan could move a subscriber. The gateway does not invent geometry: `radius_m`
+is mandatory, and a request for a cell that does not exist answers 404 rather
+than a made-up coordinate.
+
+`GET /v1/cells/{rat}/{cellIdentity}` returns the cell plus a GeoJSON
+`coveragePolygon` (WGS-84, `[lon, lat]`, ring closed). The shape follows what is
+known: `POINT` without a radius, `CIRCLE` with a radius but no beam, `ARC` for
+a sector (centre included). `dataQuality` is 0-100; when the import supplies
+one it wins, otherwise it is a weighted completeness score (coordinates 40,
+radius 20, beam 10, antenna height 5, site 5, PCI 3, ARFCN 2, source 5, and 10
+for verification within the last year).
+
+### CSV import
+
+```bash
+curl -s -X POST 'localhost:8082/v1/admin/cells/import' \
+  -H "X-Admin-Key: $GMLC_ADMIN_KEY" -H 'content-type: text/csv' \
+  --data-binary @cells.csv                       # dry run: the report only
+# then, when the report is clean:
+curl -s -X POST 'localhost:8082/v1/admin/cells/import?dryRun=false' \
+  -H "X-Admin-Key: $GMLC_ADMIN_KEY" -H 'content-type: text/csv' \
+  --data-binary @cells.csv
+```
+
+```csv
+rat,plmn_mcc,plmn_mnc,area_code,cell_code,site_name,latitude,longitude,antenna_height_m,azimuth_deg,beamwidth_deg,radius_m,pci,arfcn,cell_type,data_source,data_quality,last_verified
+LTE,001,01,101,1,Kampala-Nakasero-1,0.313611,32.581111,25,90,65,1200,101,1650,MACRO,drive-test,,2026-03-01
+```
+
+| Column | Required | Notes |
+|---|---|---|
+| `rat` | yes | `GSM`, `UMTS`, `LTE`, `NR` |
+| `plmn_mcc`, `plmn_mnc` | yes | 3 digits; MNC 2 or 3 (`mcc`/`mnc` accepted as aliases) |
+| `area_code` | yes | LAC or TAC, 0-65535 |
+| `cell_code` | yes | 16 bits GSM, 28 UMTS/LTE, 36 NR |
+| `latitude`, `longitude` | yes | WGS-84 decimal degrees |
+| `radius_m` | yes | 1-200000; without it the geometry cannot bound uncertainty |
+| `site_name`, `antenna_height_m`, `azimuth_deg`, `beamwidth_deg`, `pci`, `arfcn`, `cell_type`, `data_source`, `data_quality`, `last_verified` | no | `azimuth_deg` 0-359, `beamwidth_deg` 1-360, PCI 0-1007, `last_verified` ISO date |
+
+Every row is validated before anything is written; a commit runs in one
+transaction, so a file with one bad row changes nothing. Errors come back with
+the line number and the field: `{"line": 4, "field": "radius_m", ...}`. The
+response also says how many rows would be inserted versus updated, so an import
+that is really a large update is visible before it runs. The same format is the
+Phase 2 contract with the E-SMLC import.
+
 ## Build and test
 
 Maven is offline-first on this workstation; see `BUILD-NOTES.md`.
@@ -156,6 +218,7 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── audit/         append-only trail, no coordinates
 ├── capability/    profile model rules, loader, controller
 ├── cdr/           one row per finished request, subscriber as pseudonym
+├── cell/          identities, validation, geometry, quality, CSV import
 ├── client/        API keys, authentication, allowlists, quotas, request filter
 ├── config/        deployment properties
 ├── consent/       consent records, expiry, emergency basis
