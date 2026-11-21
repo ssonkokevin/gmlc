@@ -33,6 +33,8 @@ gmlc:
   subject-pepper: ${GMLC_SUBJECT_PEPPER:}
   # Emergency requests bypass stored consent only when the operator says so.
   emergency-override: ${GMLC_EMERGENCY_OVERRIDE:false}
+  # The name an MME shows its privacy rules as the requesting LCS client.
+  lcs-client-name: ${GMLC_LCS_CLIENT_NAME:hamiltel-gmlc}
   # Diameter SLh/SLg towards the HSS and the MME. An empty peer-host leaves the
   # clients in the fail-closed "not configured" state: requests end with
   # SIGNALLING_NOT_CONFIGURED rather than a guessed position.

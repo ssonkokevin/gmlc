@@ -13,14 +13,17 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * The Le surface. The subject is accepted here and never echoed: the response
- * names the request, its state and its failure code, nothing about the
- * subscriber. An accepted request that has already finished answers 200 with
- * its final state; one still working answers 202.
+ * names the request, its state, its failure code and - when there is one -
+ * the position with the envelope that qualifies it. An accepted request that
+ * has already finished answers 200 with its final state; one still working
+ * answers 202.
  */
 @RestController
 @RequestMapping("/v1/locations")
@@ -45,13 +48,15 @@ public class LocationController {
                 : HttpStatus.ACCEPTED;
         return ResponseEntity.status(status)
                 .header("Location", "/v1/locations/" + stored.requestId())
-                .body(LocationView.of(stored, outcome.replayed()));
+                .body(LocationView.of(stored, outcome.replayed(),
+                        requests.result(client, stored).orElse(null)));
     }
 
     @GetMapping("/{requestId}")
     public LocationView get(@CurrentClient ApiClient client,
                             @PathVariable("requestId") UUID requestId) {
-        return LocationView.of(requests.get(client, requestId), null);
+        LocationRequestRepository.StoredRequest stored = requests.get(client, requestId);
+        return LocationView.of(stored, null, requests.result(client, stored).orElse(null));
     }
 
     public record LocationView(
@@ -66,13 +71,46 @@ public class LocationController {
             Instant updatedAt,
             Instant deadlineAt,
             Instant completedAt,
-            Boolean replayed) {
+            Boolean replayed,
+            Result result) {
 
-        static LocationView of(LocationRequestRepository.StoredRequest stored, Boolean replayed) {
+        static LocationView of(LocationRequestRepository.StoredRequest stored, Boolean replayed,
+                               LocationResultRepository.StoredResult result) {
             return new LocationView(stored.requestId(), stored.state(), stored.purpose(),
                     stored.priority(), stored.accuracyRequestedM(), stored.errorCode(),
                     stored.errorDetail(), stored.createdAt(), stored.updatedAt(),
-                    stored.deadlineAt(), stored.completedAt(), replayed);
+                    stored.deadlineAt(), stored.completedAt(), replayed,
+                    result == null ? null : Result.of(result));
+        }
+    }
+
+    /**
+     * The position and everything that qualifies it. A client that reads only
+     * latitude and longitude is reading a circle of {@code uncertaintyM}
+     * metres, no older than {@code ageSeconds}, from the given method.
+     */
+    public record Result(
+            String method,
+            String shape,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            Integer uncertaintyM,
+            Integer confidence,
+            Integer ageSeconds,
+            Integer accuracyRequestedM,
+            Boolean accuracyFulfilled,
+            String servingCell,
+            String engine,
+            String positioningNode,
+            Instant producedAt,
+            List<String> methodsAttempted) {
+
+        static Result of(LocationResultRepository.StoredResult stored) {
+            return new Result(stored.method(), stored.shape(), stored.latitude(),
+                    stored.longitude(), stored.uncertaintyM(), stored.confidence(),
+                    stored.ageSeconds(), stored.accuracyRequestedM(), stored.accuracyFulfilled(),
+                    stored.servingCell(), stored.engine(), stored.positioningNode(),
+                    stored.producedAt(), stored.methodsAttempted());
         }
     }
 }

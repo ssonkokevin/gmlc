@@ -3,7 +3,9 @@ package com.hamiltel.gmlc.location;
 import com.hamiltel.gmlc.audit.AuditTrail;
 import com.hamiltel.gmlc.cdr.CdrRepository;
 import com.hamiltel.gmlc.client.ApiClient;
+import com.hamiltel.gmlc.config.GmlcProperties;
 import com.hamiltel.gmlc.consent.ConsentService;
+import com.hamiltel.gmlc.diameter.SignallingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,10 +17,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The Le request path: validate, check consent, record the request, then try
- * to route it. This build has no MAP or Diameter location client yet, so every
- * routed request ends FAILED with {@code NO_LCS_SOURCE} and a CDR that says
- * the same - it never invents a position.
+ * The Le request path: validate, check consent, record the request, then ask
+ * the locator. A position is written to {@code location_result} before it is
+ * returned, and a failure is a stable code with a CDR that says the same. The
+ * gateway never returns a coordinate it did not obtain.
+ *
+ * <p>Le is synchronous: the answer travels in this response, so a request that
+ * produced a result moves to DELIVERED before the body is written.
  */
 @Service
 public class LocationRequestService {
@@ -30,22 +35,31 @@ public class LocationRequestService {
 
     static final String NO_LCS_SOURCE = "NO_LCS_SOURCE";
 
+    private static final String NOT_CONFIGURED = "SIGNALLING_NOT_CONFIGURED";
+
     private final LocationRequestRepository requests;
     private final ConsentService consents;
     private final SubscriberValidator validator;
     private final SubjectRefHasher hasher;
     private final CdrRepository cdrs;
     private final AuditTrail audit;
+    private final LocationLocator locator;
+    private final LocationResultRepository results;
+    private final GmlcProperties properties;
 
     public LocationRequestService(LocationRequestRepository requests, ConsentService consents,
                                   SubscriberValidator validator, SubjectRefHasher hasher,
-                                  CdrRepository cdrs, AuditTrail audit) {
+                                  CdrRepository cdrs, AuditTrail audit, LocationLocator locator,
+                                  LocationResultRepository results, GmlcProperties properties) {
         this.requests = requests;
         this.consents = consents;
         this.validator = validator;
         this.hasher = hasher;
         this.cdrs = cdrs;
         this.audit = audit;
+        this.locator = locator;
+        this.results = results;
+        this.properties = properties;
     }
 
     public Outcome create(ApiClient client, LocationRequestInput input, String headerIdempotencyKey) {
@@ -112,18 +126,67 @@ public class LocationRequestService {
                 RequestState.PRIVACY_CHECKED, null, null);
         requests.advance(client.tenantId(), requestId, RequestState.PRIVACY_CHECKED,
                 RequestState.ROUTED, null, null);
+        requests.advance(client.tenantId(), requestId, RequestState.ROUTED,
+                RequestState.REQUESTED, null, null);
 
-        // No MAP, SLh/SLg or SLs client is configured in this build. Saying so
-        // is the honest outcome; the error code is stable for clients.
-        String detail = "no MAP or Diameter location client is configured in this build";
-        requests.advance(client.tenantId(), requestId, RequestState.ROUTED, RequestState.FAILED,
-                NO_LCS_SOURCE, detail);
+        Optional<LocationEstimate> estimate;
+        try {
+            estimate = locator.locate(new LocationLocator.Query(client.tenantId(),
+                    stored.msisdn(), stored.imsi(), stored.accuracyRequestedM(),
+                    stored.purpose(), properties.lcsClientName()));
+        } catch (SignallingException e) {
+            // With no peer configured nothing can source a position, which is
+            // the same fact NO_LCS_SOURCE already names to clients.
+            String code = NOT_CONFIGURED.equals(e.code()) ? NO_LCS_SOURCE : e.code();
+            return finishFailure(client, requestId, subjectRef, privacy, stored, code, e.getMessage());
+        }
+
+        if (estimate.isEmpty()) {
+            return finishFailure(client, requestId, subjectRef, privacy, stored, NO_LCS_SOURCE,
+                    "the serving network named no cell to locate");
+        }
+        return finishAnswer(client, requestId, subjectRef, privacy, stored, estimate.get());
+    }
+
+    private Outcome finishAnswer(ApiClient client, UUID requestId, String subjectRef,
+                                 ConsentService.PrivacyDecision privacy,
+                                 LocationRequestRepository.StoredRequest stored,
+                                 LocationEstimate estimate) {
+        UUID resultId = UUID.randomUUID();
+        results.insert(client.tenantId(), requestId, resultId, estimate);
+        requests.attachResult(client.tenantId(), requestId, resultId);
+        requests.advance(client.tenantId(), requestId, RequestState.REQUESTED,
+                RequestState.ANSWERED, null, null);
+
+        long responseMs = Duration.between(stored.createdAt(), Instant.now()).toMillis();
+        cdrs.writeSuccess(client.tenantId(), requestId, client.clientId(), privacy.consentId(),
+                subjectRef, estimate, responseMs);
+        audit.recordForSubject(client.tenantId(), client.clientId(), "REQUEST_ANSWERED",
+                subjectRef, requestId, AuditTrail.Outcome.ALLOWED,
+                Map.of("method", estimate.method(), "uncertaintyM", estimate.uncertaintyM()));
+        log.info("request {} answered by {} within {} m", requestId, estimate.method(),
+                estimate.uncertaintyM());
+
+        requests.advance(client.tenantId(), requestId, RequestState.ANSWERED,
+                RequestState.DELIVERED, null, null);
+        LocationRequestRepository.StoredRequest answered = requests.find(
+                        client.tenantId(), client.clientId(), requestId)
+                .orElseThrow(() -> new IllegalStateException("request vanished after delivery"));
+        return new Outcome(answered, false);
+    }
+
+    private Outcome finishFailure(ApiClient client, UUID requestId, String subjectRef,
+                                  ConsentService.PrivacyDecision privacy,
+                                  LocationRequestRepository.StoredRequest stored,
+                                  String code, String detail) {
+        requests.advance(client.tenantId(), requestId, RequestState.REQUESTED,
+                RequestState.FAILED, code, detail);
         long responseMs = Duration.between(stored.createdAt(), Instant.now()).toMillis();
         cdrs.writeFailure(client.tenantId(), requestId, client.clientId(), privacy.consentId(),
-                subjectRef, NO_LCS_SOURCE, stored.accuracyRequestedM(), responseMs);
+                subjectRef, code, stored.accuracyRequestedM(), responseMs);
         audit.record(client.tenantId(), client.clientId(), "REQUEST_FAILED", requestId,
-                AuditTrail.Outcome.ERROR, Map.of("code", NO_LCS_SOURCE));
-        log.info("request {} failed closed: {}", requestId, NO_LCS_SOURCE);
+                AuditTrail.Outcome.ERROR, Map.of("code", code));
+        log.info("request {} failed closed: {}", requestId, code);
 
         LocationRequestRepository.StoredRequest failed = requests.find(
                         client.tenantId(), client.clientId(), requestId)
@@ -134,6 +197,12 @@ public class LocationRequestService {
     public LocationRequestRepository.StoredRequest get(ApiClient client, UUID requestId) {
         return requests.find(client.tenantId(), client.clientId(), requestId)
                 .orElseThrow(() -> new RequestNotFoundException(requestId));
+    }
+
+    public Optional<LocationResultRepository.StoredResult> result(ApiClient client,
+                                                                  LocationRequestRepository.StoredRequest request) {
+        return request.resultId() == null ? Optional.empty()
+                : results.find(client.tenantId(), request.resultId());
     }
 
     public record Outcome(LocationRequestRepository.StoredRequest request, boolean replayed) {

@@ -1,5 +1,7 @@
 package com.hamiltel.gmlc.cdr;
 
+import com.hamiltel.gmlc.location.LocationEstimate;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -35,6 +37,31 @@ public class CdrRepository {
                 """,
                 tenantId, requestId, clientId, consentId, subscriberRef, resultCode,
                 accuracyRequestedM, (int) Math.max(0, responseTimeMs));
+    }
+
+    /**
+     * One row for an answered request, with the envelope duplicated so a CDR
+     * export can be read without joining the result table.
+     */
+    public void writeSuccess(long tenantId, UUID requestId, UUID clientId, UUID consentId,
+                             String subscriberRef, LocationEstimate estimate, long responseTimeMs) {
+        jdbc.update("""
+                INSERT INTO cdr (tenant_id, request_id, client_id, consent_id, subscriber_ref,
+                    rat_type, positioning_method, methods_attempted, result_code,
+                    accuracy_requested_m, accuracy_achieved_m, accuracy_fulfilled,
+                    response_time_ms, positioning_node, serving_node, age_of_location_s,
+                    shape, latitude, longitude, uncertainty_m, confidence, record_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        'ANSWERED')
+                """,
+                tenantId, requestId, clientId, consentId, subscriberRef,
+                estimate.rat(), estimate.method(),
+                estimate.methodsAttempted().toArray(new String[0]),
+                estimate.accuracyRequestedM(), estimate.uncertaintyM(), estimate.accuracyFulfilled(),
+                (int) Math.max(0, responseTimeMs), estimate.positioningNode(),
+                estimate.servingCell(), estimate.ageSeconds(), estimate.shape(),
+                estimate.latitude(), estimate.longitude(), estimate.uncertaintyM(),
+                estimate.confidence());
     }
 
     public List<CdrRow> recent(long tenantId, UUID clientId, int limit) {

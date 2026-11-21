@@ -81,6 +81,19 @@ public class CellRepository {
         return rows.stream().findFirst();
     }
 
+    /**
+     * The lookup an ECGI or CGI permits: no area code is carried. Cell codes
+     * compare canonically, so a plan row imported as {@code 000123} matches an
+     * identifier decoded as {@code 123}.
+     */
+    public List<CellRow> findByPlmnAndCellCode(long tenantId, String rat, String mcc, String mnc,
+                                               String cellCode) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM cell"
+                        + " WHERE tenant_id = ? AND rat = ? AND plmn_mcc = ? AND plmn_mnc = ?"
+                        + " AND regexp_replace(cell_code, '^0+(?=.)', '') = ?",
+                MAPPER, tenantId, rat, mcc, mnc, cellCode);
+    }
+
     public List<CellRow> list(long tenantId, String rat, String area, int limit, int offset) {
         StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM cell WHERE tenant_id = ?");
         List<Object> args = new ArrayList<>();

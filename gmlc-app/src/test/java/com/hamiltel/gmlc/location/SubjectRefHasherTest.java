@@ -15,7 +15,8 @@ class SubjectRefHasherTest {
     private static final String IMSI = "001010000000001";
 
     private static GmlcProperties properties(String pepper) {
-        return new GmlcProperties(1, "classpath:profile.json", "0", null, pepper, false);
+        return new GmlcProperties(1, "classpath:profile.json", "0", null, pepper, false,
+                "hamiltel-gmlc");
     }
 
     @Test

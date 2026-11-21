@@ -133,7 +133,7 @@ class LeApiTest {
         assertThat(body.path("priority").asText()).isEqualTo("NORMAL");
         assertThat(body.path("replayed").asBoolean()).isFalse();
         assertThat(body.toString()).doesNotContain(msisdn).doesNotContain("subscriber");
-        assertThat(body.path("errorDetail").asText()).contains("no MAP or Diameter location client");
+        assertThat(body.path("errorDetail").asText()).contains("Diameter");
 
         UUID requestId = UUID.fromString(body.path("requestId").asText());
         assertThat(created.getHeaders().getFirst(HttpHeaders.LOCATION))

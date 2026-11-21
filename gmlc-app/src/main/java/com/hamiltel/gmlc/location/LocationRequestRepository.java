@@ -87,6 +87,16 @@ public class LocationRequestRepository {
         }
     }
 
+    public void attachResult(long tenantId, UUID requestId, UUID resultId) {
+        int rows = jdbc.update(
+                "UPDATE location_request SET result_id = ?, updated_at = now()"
+                        + " WHERE tenant_id = ? AND request_id = ?",
+                resultId, tenantId, requestId);
+        if (rows != 1) {
+            throw new IllegalStateException("request " + requestId + " vanished before its result");
+        }
+    }
+
     private static final RowMapper<StoredRequest> MAPPER = (rs, rowNum) -> new StoredRequest(
             rs.getObject("request_id", UUID.class),
             rs.getLong("tenant_id"),

@@ -22,7 +22,7 @@ The split is recorded with its reasoning in the core repository under
 | Client registration, API keys, address allowlists | **Built and tested** |
 | Per-second and per-day quotas, audited refusals | **Built and tested** |
 | Consent: grant, read, revoke, expiry, emergency override | **Built and tested** |
-| Le location API, request state machine, CDRs | **Built and tested**; fails closed until a location client is wired in |
+| Le location API, request state machine, CDRs | **Built and tested**; answers cell-ID from the cell plan when a Diameter peer is configured, fails closed otherwise |
 | Authoritative cell database, coverage geometry, CSV import with dry-run | **Built and tested** |
 | Diameter SLh RIR and SLg PLR/PLA clients, CER/CEA, TCP framing | **Built and tested**; fail closed until a peer is configured |
 | MAP (ATI, PSI, SRILCS, PSL, SLR) | Not yet |
@@ -40,7 +40,7 @@ GET  /v1/capabilities    the tenant's capability profile                   (API 
 GET  /v1/clients/me      the calling client's own configuration            (API key)
 
 POST /v1/locations       submit a location request                         (API key)
-GET  /v1/locations/{id}  its state, failure code and timestamps            (API key)
+GET  /v1/locations/{id}  its state, failure code, timestamps and result       (API key)
 
 POST /v1/consents        record consent for a subject and purpose          (API key)
 GET  /v1/consents/{id}   status of a consent record                        (API key)
@@ -107,16 +107,45 @@ audit row records `EMERGENCY_OVERRIDE` as the basis.
 not buy. `Idempotency-Key` (header or body field) replays the original request
 instead of creating a second one.
 
-The request moves `RECEIVED → AUTHORISED → PRIVACY_CHECKED → ROUTED`, then
-either to `REQUESTED`/`ANSWERED` or to a failure state. Terminal states cannot
-be left, which is enforced both in the state enum and by a conditional update
-on the row. A `POST` that has already finished answers 200 with its final
-state; one still open answers 202.
+The request moves `RECEIVED → AUTHORISED → PRIVACY_CHECKED → ROUTED →
+REQUESTED`, then either to `ANSWERED → DELIVERED` or to a failure state.
+Terminal states cannot be left, which is enforced both in the state enum and by
+a conditional update on the row. A `POST` that has already finished answers 200
+with its final state; one still open answers 202.
 
-The request path still ends `FAILED` with `errorCode: NO_LCS_SOURCE` and a CDR
-row saying the same: the Diameter clients exist (see below) but the router that
-calls them is not built yet. That is deliberate: the gateway reports what it
-cannot do instead of synthesising a position.
+### The result envelope
+
+When the locator answers, the position is written to `location_result` and
+attached to the request *before* the response is built, so a client that has seen
+a coordinate can always fetch the same one again. The response carries it as
+`result`:
+
+```json
+{
+  "requestId": "…", "state": "DELIVERED", "purpose": "COMMERCIAL_LBS",
+  "result": {
+    "method": "CELL_ID", "shape": "CIRCLE",
+    "latitude": 0.3476, "longitude": 32.5825,
+    "uncertaintyM": 2500, "confidence": 80, "ageSeconds": 45,
+    "accuracyRequestedM": 10000, "accuracyFulfilled": true,
+    "servingCell": "001-01-1-662273", "engine": "CELL_DB",
+    "positioningNode": "mme1.epc.mnc001.mcc001.3gppnetwork.org",
+    "methodsAttempted": ["SLH_RIR", "SLG_PLA"]
+  }
+}
+```
+
+Every answer is a circle: `latitude`/`longitude` are the centre,
+`uncertaintyM` its radius and `confidence` the plan's stated quality (neutral
+`50` when the cell row has none). A request fails rather than approximate:
+`CELL_NOT_IN_PLAN`, `CELL_WITHOUT_RADIUS`, `NO_SERVING_NODE`, or the
+signalling's own code. `NO_LCS_SOURCE` means the serving network named no cell -
+or no peer is configured at all.
+
+The path still ends `FAILED` with `errorCode: NO_LCS_SOURCE` when no Diameter
+peer is configured: the transport refuses `SIGNALLING_NOT_CONFIGURED`, which the
+gateway maps to the client-facing `NO_LCS_SOURCE`. A CDR row records the same
+outcome.
 
 `GET /v1/cdrs?limit=50` returns the caller's records, newest first. The
 subscriber appears only as the pseudonymous reference; the raw MSISDN/IMSI stay
@@ -149,6 +178,14 @@ codec, the stream framing and the capabilities exchange are all in
   client type and the LCS QoS. The answer's ECGI becomes an LTE cell, a
   Cell-Global-Identity becomes a GSM cell with its LAC, and anything else is
   empty - the client never invents a cell that the answer did not contain.
+
+`DiameterCellLocator` joins the two: SLh resolves the serving node, SLg asks it
+for the cell, and the cell is looked up in the plan. The ECGI carries no TAC, so
+the lookup matches PLMN and cell code only; more than one row means the identity
+is ambiguous in this plan and the request fails (`AMBIGUOUS_CELL`) rather than
+pick one. The locator reports `method: CELL_ID`, the plan's `radius_m` as the
+uncertainty, and the plan's `data_quality` as the confidence. An empty plan row
+is `CELL_NOT_IN_PLAN`, never a guessed coordinate.
 
 Codes come from TS 29.172 (SLh/SLg), 29.274 (ECGI and CGI octet layout) and
 29.002 (TBCD, MSISDN). Errors map to a small stable set the Le caller sees:
@@ -261,7 +298,7 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── consent/       consent records, expiry, emergency basis
 ├── diameter/      AVP/message codec, TCP transport, SLh and SLg clients
 ├── health/        health endpoint
-├── location/      Le requests, state machine, pseudonyms, validation
+├── location/      Le requests, state machine, locator, results, pseudonyms
 └── web/           error mapping to RFC 7807 problems
 gmlc-app/src/main/resources/db/migration/   Flyway SQL, V1 onward
 gmlc-app/src/main/resources/location/       bundled capability profile

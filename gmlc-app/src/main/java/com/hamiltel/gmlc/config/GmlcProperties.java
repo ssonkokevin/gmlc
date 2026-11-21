@@ -16,6 +16,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *                                 blank falls back to an unkeyed SHA-256
  * @param emergencyOverride        allow an EMERGENCY request without stored
  *                                 consent; the audit row records the override
+ * @param lcsClientName            the name the gateway presents to an MME as
+ *                                 the requesting LCS client
  */
 @ConfigurationProperties(prefix = "gmlc")
 public record GmlcProperties(
@@ -24,5 +26,6 @@ public record GmlcProperties(
         String version,
         String adminKey,
         String subjectPepper,
-        boolean emergencyOverride) {
+        boolean emergencyOverride,
+        String lcsClientName) {
 }
