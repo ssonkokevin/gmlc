@@ -155,6 +155,27 @@ public class TrackingRepository {
                 tenantId, clientId, trackedId).stream().findFirst();
     }
 
+    /**
+     * Internal projection for a schedule: the identifier is needed to place a
+     * governed request, and it never leaves the gateway.
+     */
+    public Optional<ScheduleTarget> findTarget(long tenantId, UUID trackedId) {
+        return jdbc.query("""
+                SELECT tracked_id, client_id, subject_ref, subject_msisdn, subject_imsi,
+                       purpose, enabled
+                FROM tracked_subject WHERE tenant_id = ? AND tracked_id = ?
+                """,
+                (rs, rowNum) -> new ScheduleTarget(
+                        rs.getObject("tracked_id", UUID.class),
+                        rs.getObject("client_id", UUID.class),
+                        rs.getString("subject_ref"),
+                        rs.getString("subject_msisdn"),
+                        rs.getString("subject_imsi"),
+                        rs.getString("purpose"),
+                        rs.getBoolean("enabled")),
+                tenantId, trackedId).stream().findFirst();
+    }
+
     public List<FixView> trail(long tenantId, UUID trackedId, int limit) {
         return jdbc.query(TRAIL, FIX_MAPPER, tenantId, trackedId, limit);
     }
@@ -213,6 +234,10 @@ public class TrackingRepository {
 
     public record OwnedSubject(UUID trackedId, UUID clientId, String subjectRef, String purpose,
                                boolean enabled, FixView lastFix) {
+    }
+
+    public record ScheduleTarget(UUID trackedId, UUID clientId, String subjectRef, String msisdn,
+                                 String imsi, String purpose, boolean enabled) {
     }
 
     public record FixView(UUID requestId, UUID resultId, String method,

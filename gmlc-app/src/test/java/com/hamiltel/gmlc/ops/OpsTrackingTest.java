@@ -61,7 +61,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "gmlc.ops.bootstrap-totp-secret=" + OpsTrackingTest.ADMIN_TOTP,
         "gmlc.ops.alerts.enabled=false",
         "gmlc.webhooks.enabled=false",
-        "gmlc.webhooks.initial-delay-seconds=3600"
+        "gmlc.webhooks.initial-delay-seconds=3600",
+        "gmlc.tracking.initial-delay-seconds=3600"
 })
 @Import(OpsTrackingTest.StubLocator.class)
 class OpsTrackingTest {
@@ -236,8 +237,11 @@ class OpsTrackingTest {
                 .asBoolean());
         assertFalse(summary.get("reporting").get("liveNetworkTracking").get("available")
                 .asBoolean());
-        assertFalse(summary.get("reporting").get("scheduledTracking").get("available")
+        assertTrue(summary.get("reporting").get("scheduledTracking").get("available")
                 .asBoolean());
+        assertTrue(summary.get("reporting").get("notifyOnNewFix").get("available").asBoolean());
+        assertTrue(summary.get("reporting").get("webhookNotifier").get("available").asBoolean());
+        assertFalse(summary.get("reporting").get("emailNotifier").get("available").asBoolean());
 
         ResponseEntity<JsonNode> known = lastKnown(owner, trackedId);
         assertEquals(HttpStatus.OK, known.getStatusCode(), String.valueOf(known.getBody()));

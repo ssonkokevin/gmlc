@@ -123,6 +123,20 @@ gmlc:
     timeout-seconds: ${GMLC_WEBHOOKS_TIMEOUT_SECONDS:5}
     max-attempts: ${GMLC_WEBHOOKS_MAX_ATTEMPTS:5}
     batch-size: ${GMLC_WEBHOOKS_BATCH_SIZE:50}
+  # Automated tracking. A schedule places a normal governed location request on
+  # a timer; it is not an LDR or periodic subscription. The minimum interval is
+  # a conservative floor because licence metering is not wired, so the gateway
+  # cannot tell what the network would bill. The notifier key seals channel
+  # signing secrets at rest; without it, channel creation is refused rather
+  # than storing a secret in the clear.
+  tracking:
+    schedules-enabled: ${GMLC_TRACKING_SCHEDULES_ENABLED:true}
+    flush-seconds: ${GMLC_TRACKING_FLUSH_SECONDS:30}
+    initial-delay-seconds: ${GMLC_TRACKING_INITIAL_DELAY_SECONDS:45}
+    timeout-seconds: ${GMLC_TRACKING_TIMEOUT_SECONDS:10}
+    min-interval-seconds: ${GMLC_TRACKING_MIN_INTERVAL_SECONDS:300}
+    batch-size: ${GMLC_TRACKING_BATCH_SIZE:20}
+    notifier-key: ${GMLC_TRACKING_NOTIFIER_KEY:}
 
 logging:
   level:

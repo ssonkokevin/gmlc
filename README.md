@@ -41,7 +41,9 @@ The split is recorded with its reasoning in the core repository under
 | Event webhooks: HMAC-signed deliveries, per-subscription filters, retries with backoff | **Built and tested** (phase C4b) |
 | Console Geofencing screen: shapes, arms, event tabs, webhooks, honesty panel | **Built and tested** (phase C4c) |
 | Tracking roster: consented subjects, stored-result trails, client last-known | **Built and tested** (phase C5a) |
-| Tracking console screen, automated schedules, notifier channels | Not yet (phases C5b-C5c) |
+| Automated tracking schedules: window, interval floor, run log, manual run | **Built and tested** (phase C5b) |
+| Notifier channels: sealed signing secrets, signed WEBHOOK delivery only | **Built and tested** (phase C5b); EMAIL, TELEGRAM and SLACK answer `NOTIFIER_NOT_AVAILABLE` |
+| Tracking console screen | Not yet (phase C5c) |
 | Console Administration (configuration, four-eyes) | Not yet (phase C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
@@ -127,6 +129,19 @@ GET  /v1/ops/tracking/{id}/trail?limit=    stored results, newest first         
 POST /v1/ops/tracking                      add a consented subject               (session, LOCATE + CSRF)
 PATCH /v1/ops/tracking/{id}                pause or resume the subject           (session, LOCATE + CSRF)
 DELETE /v1/ops/tracking/{id}               remove the roster row                 (session, LOCATE + CSRF)
+
+GET  /v1/ops/tracking/schedules            schedules with window and last state  (session, VIEW_REQUESTS)
+GET  /v1/ops/tracking/schedules/{id}       one schedule                          (session, VIEW_REQUESTS)
+GET  /v1/ops/tracking/schedules/{id}/runs  attempt log, newest first             (session, VIEW_REQUESTS)
+POST /v1/ops/tracking/schedules            create a window and interval          (session, LOCATE + CSRF)
+PATCH /v1/ops/tracking/schedules/{id}      pause or resume                       (session, LOCATE + CSRF)
+DELETE /v1/ops/tracking/schedules/{id}     remove a schedule and its run log     (session, LOCATE + CSRF)
+POST /v1/ops/tracking/schedules/{id}/run   run once now, recorded as MANUAL      (session, LOCATE + CSRF)
+GET  /v1/ops/tracking/channels             channels without their secret         (session, VIEW_REQUESTS)
+GET  /v1/ops/tracking/channels/{id}        one channel without its secret        (session, VIEW_REQUESTS)
+POST /v1/ops/tracking/channels             create; returns the secret once       (session, MANAGE_NOTIFIERS + CSRF)
+PATCH /v1/ops/tracking/channels/{id}       enable or disable                     (session, MANAGE_NOTIFIERS + CSRF)
+DELETE /v1/ops/tracking/channels/{id}      remove; refused while in use          (session, MANAGE_NOTIFIERS + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -300,12 +315,13 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C4 plus the tracking API of phase C5a;
-the tracking screen, automated schedules, notifier channels, OIDC and scheduled
-reports are not built yet. A tracked subject is a roster row over stored
-results, not a live network feed. Those arrive with their own phases and are
-not claimed here. Peer `DOWN` requires observed exchange failures - a gateway
-that has never sent to a peer reports `IDLE`, never a health claim.
+Honest limits: the console UI is phase C4 plus the tracking API of phases C5a
+and C5b; the tracking screen, OIDC and scheduled reports are not built yet. A
+tracked subject is a roster row over stored results, not a live network feed,
+and a schedule places governed requests on a timer rather than subscribing to
+the network. Those arrive with their own phases and are not claimed here. Peer
+`DOWN` requires observed exchange failures - a gateway that has never sent to a
+peer reports `IDLE`, never a health claim.
 
 **Console UI (phase C1d shell, phase C2 Location Request, phase C3 Monitoring
 and Reports, phase C4 Geofencing).** `/console/` serves
@@ -472,8 +488,37 @@ client placed for this purpose, newest first, each carrying the method, shape,
 uncertainty, confidence and age the request path recorded. This deployment has
 no deferred (LDR), periodic or event-driven location subscription, so a subject
 does not move by itself; `GET /v1/ops/tracking/summary` says that in its
-`reporting` map rather than implying a live position. Automated schedules and
-notifier channels are phase C5b and are reported as unavailable until built.
+`reporting` map rather than implying a live position. Automated schedules are
+phase C5b and place governed requests; no network subscription is claimed.
+
+**Automated tracking and notifiers (phase C5b).** A schedule names one tracked
+subject, a from/to window and an interval. Each run goes through the same
+`LocationRequestService` a client or operator uses, so purpose, consent,
+accuracy and the client's daily quota decide whether a fix is obtained; the
+run is recorded as `LOCATED`, `NO_FIX`, `SKIPPED` (`CLIENT_DISABLED`,
+`RATE_LIMITED`) or `FAILED` (with the refusing code). After every attempt the
+next run is a full interval away, so a revoked consent or an absent subscriber
+is not retried in a tight loop. `POST .../schedules/{id}/run` places one
+attempt immediately and records it as `MANUAL` without moving the timer.
+
+The interval floor is 300 seconds and the schema refuses less. Licence metering
+is not wired in this deployment, so the floor is a conservative paging guard,
+not a purchased figure; the console summary says that in its `reporting` map.
+A schedule is not an LDR or periodic location subscription - the gateway does
+not ask the network to keep reporting.
+
+A channel stores where a notification goes and the secret used to sign it.
+Only `WEBHOOK` is built; `EMAIL`, `TELEGRAM` and `SLACK` are refused with
+`NOTIFIER_NOT_AVAILABLE` rather than accepted and silently dropped. The
+gateway generates the signing secret, seals it with AES-256-GCM under
+`GMLC_TRACKING_NOTIFIER_KEY` (base64, exactly 32 bytes), returns it once and
+never reads it back; a blank key refuses channel creation instead of storing
+plaintext. A channel with schedules cannot be deleted. A run that stores a fix
+sends one signed `tracking.fix` notification with the `X-GMLC-Timestamp` and
+`X-GMLC-Signature` headers a geofence webhook uses; the body carries the
+pseudonymous reference and masked label, never the MSISDN or IMSI. Delivery is
+one attempt per run - the next schedule run is the retry - and the outcome
+(`SENT`, `FAILED`, `NOT_CONFIGURED`) is kept on the run.
 
 The client-facing `GET /v1/subscribers/{trackedId}/last-known` is scoped to the
 client that added the subject; another client's identifier answers 404 with no

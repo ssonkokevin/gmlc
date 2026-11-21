@@ -1,7 +1,10 @@
 package com.hamiltel.gmlc.ops;
 
 import com.hamiltel.gmlc.config.OpsProperties;
+import com.hamiltel.gmlc.tracking.NotificationChannelRepository;
+import com.hamiltel.gmlc.tracking.SecretBox;
 import com.hamiltel.gmlc.tracking.TrackingRepository;
+import com.hamiltel.gmlc.tracking.TrackingScheduleRepository;
 import com.hamiltel.gmlc.tracking.TrackingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -44,10 +47,18 @@ public class OpsTrackingController {
     private static final int DEFAULT_LIMIT = 100;
 
     private final TrackingService service;
+    private final TrackingScheduleRepository schedules;
+    private final NotificationChannelRepository channels;
+    private final SecretBox secrets;
     private final OpsProperties properties;
 
-    public OpsTrackingController(TrackingService service, OpsProperties properties) {
+    public OpsTrackingController(TrackingService service, TrackingScheduleRepository schedules,
+                                 NotificationChannelRepository channels, SecretBox secrets,
+                                 OpsProperties properties) {
         this.service = service;
+        this.schedules = schedules;
+        this.channels = channels;
+        this.secrets = secrets;
         this.properties = properties;
     }
 
@@ -64,8 +75,10 @@ public class OpsTrackingController {
         long enabled = subjects.stream().filter(TrackingRepository.TrackedView::enabled).count();
         long withFix = subjects.stream().filter(s -> s.lastFix() != null).count();
         long fixes = subjects.stream().mapToLong(TrackingRepository.TrackedView::fixes).sum();
-        return new Summary(subjects.size(), enabled, withFix, fixes,
-                properties.dataSourceLabel(), reportingCapabilities());
+        TrackingScheduleRepository.Stats stats = schedules.stats(context.tenantId());
+        return new Summary(subjects.size(), enabled, withFix, fixes, stats.schedules(),
+                stats.enabled(), stats.runs(), channels.count(context.tenantId()),
+                secrets.configured(), properties.dataSourceLabel(), reportingCapabilities());
     }
 
     @GetMapping("/{trackedId}")
@@ -125,13 +138,26 @@ public class OpsTrackingController {
         features.put("liveNetworkTracking", new Feature(false,
                 "no deferred (LDR), periodic or event-driven location subscription is built,"
                         + " so the gateway cannot ask the network for a fresh position"));
-        features.put("scheduledTracking", new Feature(false,
-                "automated schedules are not built in this deployment"));
-        features.put("notifyOnNewFix", new Feature(false,
-                "no notifier is built yet; a new fix is visible when the trail is read"));
+        features.put("scheduledTracking", new Feature(true,
+                "a schedule re-runs a governed location request at its interval; the"
+                        + " gateway enforces a minimum interval because licence metering is"
+                        + " not wired, and advances the next run after every attempt"));
+        features.put("notifyOnNewFix", new Feature(true,
+                "a schedule with a WEBHOOK channel sends one signed notification when its"
+                        + " run stores a fix; a failed notification is recorded and not"
+                        + " retried until the next run"));
         features.put("heatmapRendering", new Feature(true,
                 "the console can render the stored fixes as a heatmap; the points are"
                         + " the same stored results, not a separate feed"));
+        features.put("webhookNotifier", new Feature(true,
+                "the only notifier this deployment delivers through; the signing secret"
+                        + " is sealed with the deployment key and shown once"));
+        features.put("emailNotifier", new Feature(false,
+                "no email notifier is built in this deployment"));
+        features.put("telegramNotifier", new Feature(false,
+                "no Telegram notifier is built in this deployment"));
+        features.put("slackNotifier", new Feature(false,
+                "no Slack notifier is built in this deployment"));
         return features;
     }
 
@@ -151,7 +177,9 @@ public class OpsTrackingController {
     public record PatchSubject(@NotNull Boolean enabled) {
     }
 
-    public record Summary(long total, long enabled, long withFix, long fixes, String dataSource,
+    public record Summary(long total, long enabled, long withFix, long fixes, long schedules,
+                          long schedulesEnabled, long runs, long channels,
+                          boolean notifierConfigured, String dataSource,
                           Map<String, Feature> reporting) {
     }
 

@@ -11,6 +11,7 @@ import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_CLIENTS;
 import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_CONFIG;
 import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_GEOFENCES;
 import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_LICENCE;
+import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_NOTIFIERS;
 import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_USERS;
 import static com.hamiltel.gmlc.ops.OpsPermission.REVEAL_IDENTIFIERS;
 import static com.hamiltel.gmlc.ops.OpsPermission.VIEW_DASHBOARD;
@@ -28,7 +29,7 @@ public enum OpsRole {
     ADMIN(EnumSet.allOf(OpsPermission.class)),
 
     OPERATOR(EnumSet.of(VIEW_DASHBOARD, VIEW_REQUESTS, ACK_ALERTS, LOCATE,
-            REVEAL_IDENTIFIERS, VIEW_RAW_SIGNALLING, MANAGE_GEOFENCES)),
+            REVEAL_IDENTIFIERS, VIEW_RAW_SIGNALLING, MANAGE_GEOFENCES, MANAGE_NOTIFIERS)),
 
     ANALYST(EnumSet.of(VIEW_DASHBOARD, VIEW_REQUESTS, EXPORT_CDR)),
 

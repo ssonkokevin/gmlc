@@ -53,11 +53,11 @@ class GmlcApiTest {
     void migrationsApplyAndCreateTheLocationTables() {
         Integer applied = jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where success", Integer.class);
-        assertThat(applied).isEqualTo(8);
+        assertThat(applied).isEqualTo(9);
         String version = jdbc.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class);
-        assertThat(version).isEqualTo("8");
+        assertThat(version).isEqualTo("9");
 
         Integer tables = jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_schema = 'public'"
@@ -65,9 +65,10 @@ class GmlcApiTest {
                         + " 'consent', 'cell', 'location_request', 'location_result', 'cdr', 'audit_event',"
                         + " 'ops_user', 'ops_session', 'ops_alert', 'geofence', 'geofence_arm',"
                         + " 'geofence_event', 'event_subscription', 'webhook_delivery',"
-                        + " 'tracked_subject')",
+                        + " 'tracked_subject', 'notification_channel', 'tracking_schedule',"
+                        + " 'tracking_run')",
                 Integer.class);
-        assertThat(tables).isEqualTo(19);
+        assertThat(tables).isEqualTo(22);
     }
 
     @Test
