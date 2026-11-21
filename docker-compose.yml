@@ -31,6 +31,9 @@ services:
       GMLC_DB_URL: jdbc:postgresql://postgres:5432/gmlc
       GMLC_DB_USER: gmlc
       GMLC_DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      GMLC_ADMIN_KEY: ${GMLC_ADMIN_KEY:-}
+      GMLC_SUBJECT_PEPPER: ${GMLC_SUBJECT_PEPPER:-}
+      GMLC_EMERGENCY_OVERRIDE: ${GMLC_EMERGENCY_OVERRIDE:-false}
     ports:
       - "8082:8082"
 

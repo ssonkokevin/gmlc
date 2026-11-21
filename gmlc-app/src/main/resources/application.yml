@@ -27,6 +27,12 @@ gmlc:
   # Guards client registration. Blank disables the admin surface entirely; set
   # it per deployment, never in a committed file.
   admin-key: ${GMLC_ADMIN_KEY:}
+  # Keys the subscriber pseudonym in consent, CDR and audit rows. Blank falls
+  # back to an unkeyed SHA-256, which anyone holding the database can reverse
+  # for a known MSISDN list; set it per deployment.
+  subject-pepper: ${GMLC_SUBJECT_PEPPER:}
+  # Emergency requests bypass stored consent only when the operator says so.
+  emergency-override: ${GMLC_EMERGENCY_OVERRIDE:false}
 
 logging:
   level:

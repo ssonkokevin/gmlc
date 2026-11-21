@@ -3,6 +3,10 @@ package com.hamiltel.gmlc.web;
 import com.hamiltel.gmlc.admin.AdminClientController;
 import com.hamiltel.gmlc.capability.CapabilityProfileUnavailableException;
 import com.hamiltel.gmlc.capability.UnknownTenantException;
+import com.hamiltel.gmlc.consent.ConsentNotFoundException;
+import com.hamiltel.gmlc.location.PrivacyNotSatisfiedException;
+import com.hamiltel.gmlc.location.RequestNotFoundException;
+import com.hamiltel.gmlc.location.RequestRejectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -37,6 +41,42 @@ public class LocationErrorHandler {
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "the capability profile is invalid; the gateway will not serve a claim it cannot honour");
         problem.setTitle("Capability profile unavailable");
+        return problem;
+    }
+
+    @ExceptionHandler(RequestRejectedException.class)
+    public ProblemDetail requestRejected(RequestRejectedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setTitle("Invalid request");
+        problem.setProperty("code", e.code());
+        return problem;
+    }
+
+    @ExceptionHandler(PrivacyNotSatisfiedException.class)
+    public ProblemDetail privacyNotSatisfied(PrivacyNotSatisfiedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
+                "no consent covers this subject for that purpose");
+        problem.setTitle("Privacy not satisfied");
+        problem.setProperty("code", "PRIVACY_NOT_SATISFIED");
+        problem.setProperty("purpose", e.purpose());
+        return problem;
+    }
+
+    @ExceptionHandler(RequestNotFoundException.class)
+    public ProblemDetail requestNotFound(RequestNotFoundException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                "no such location request");
+        problem.setTitle("Not found");
+        problem.setProperty("requestId", e.requestId());
+        return problem;
+    }
+
+    @ExceptionHandler(ConsentNotFoundException.class)
+    public ProblemDetail consentNotFound(ConsentNotFoundException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                "no such consent");
+        problem.setTitle("Not found");
+        problem.setProperty("consentId", e.consentId());
         return problem;
     }
 

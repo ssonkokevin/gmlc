@@ -29,6 +29,12 @@ public class AuditTrail {
             VALUES (?, ?, ?, ?, ?, ?::jsonb)
             """;
 
+    private static final String INSERT_WITH_SUBJECT = """
+            INSERT INTO audit_event (tenant_id, actor_client_id, action, subject_ref, request_id,
+                outcome, detail)
+            VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)
+            """;
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -39,11 +45,34 @@ public class AuditTrail {
 
     public void record(long tenantId, UUID actorClientId, String action, UUID requestId,
                        Outcome outcome, Map<String, Object> detail) {
+        write(null, tenantId, actorClientId, action, requestId, outcome, detail);
+    }
+
+    /**
+     * For consent and privacy decisions: the trail names the subject by the
+     * same pseudonym the consent row uses, never by MSISDN or IMSI.
+     */
+    public void recordForSubject(long tenantId, UUID actorClientId, String action, String subjectRef,
+                                 UUID requestId, Outcome outcome, Map<String, Object> detail) {
+        write(subjectRef, tenantId, actorClientId, action, requestId, outcome, detail);
+    }
+
+    private void write(String subjectRef, long tenantId, UUID actorClientId, String action,
+                       UUID requestId, Outcome outcome, Map<String, Object> detail) {
+        String json;
         try {
-            jdbc.update(INSERT, tenantId, actorClientId, action, requestId,
-                    outcome.name(), detail == null || detail.isEmpty() ? null : mapper.writeValueAsString(detail));
+            json = detail == null || detail.isEmpty() ? null : mapper.writeValueAsString(detail);
         } catch (JsonProcessingException e) {
             log.warn("audit detail not serialisable for action {}", action);
+            return;
+        }
+        try {
+            if (subjectRef == null) {
+                jdbc.update(INSERT, tenantId, actorClientId, action, requestId, outcome.name(), json);
+            } else {
+                jdbc.update(INSERT_WITH_SUBJECT, tenantId, actorClientId, action, subjectRef,
+                        requestId, outcome.name(), json);
+            }
         } catch (RuntimeException e) {
             log.warn("audit write failed for action {}: {}", action, e.getClass().getSimpleName());
         }

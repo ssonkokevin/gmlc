@@ -12,11 +12,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param version                  reported by the health endpoint
  * @param adminKey                 operator key that guards client registration;
  *                                 blank disables the admin surface
+ * @param subjectPepper            key for the pseudonymous subscriber reference;
+ *                                 blank falls back to an unkeyed SHA-256
+ * @param emergencyOverride        allow an EMERGENCY request without stored
+ *                                 consent; the audit row records the override
  */
 @ConfigurationProperties(prefix = "gmlc")
 public record GmlcProperties(
         long defaultTenantId,
         String bundledCapabilityProfile,
         String version,
-        String adminKey) {
+        String adminKey,
+        String subjectPepper,
+        boolean emergencyOverride) {
 }
