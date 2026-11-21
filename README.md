@@ -40,7 +40,9 @@ The split is recorded with its reasoning in the core repository under
 | Geofences: TS 23.032 shapes, consent-checked arms, ENTER/LEAVE/INSIDE from stored results | **Built and tested** (phase C4a) |
 | Event webhooks: HMAC-signed deliveries, per-subscription filters, retries with backoff | **Built and tested** (phase C4b) |
 | Console Geofencing screen: shapes, arms, event tabs, webhooks, honesty panel | **Built and tested** (phase C4c) |
-| Console Tracking and Administration | Not yet (phases C5-C6) |
+| Tracking roster: consented subjects, stored-result trails, client last-known | **Built and tested** (phase C5a) |
+| Tracking console screen, automated schedules, notifier channels | Not yet (phases C5b-C5c) |
+| Console Administration (configuration, four-eyes) | Not yet (phase C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -56,6 +58,7 @@ GET  /v1/clients/me      the calling client's own configuration            (API 
 
 POST /v1/locations       submit a location request                         (API key)
 GET  /v1/locations/{id}  its state, failure code, timestamps and result       (API key)
+GET  /v1/subscribers/{trackedId}/last-known  the caller's tracked subject   (API key)
 
 POST /v1/consents        record consent for a subject and purpose          (API key)
 GET  /v1/consents/{id}   status of a consent record                        (API key)
@@ -116,6 +119,14 @@ GET  /v1/ops/subscriptions/{id}/deliveries recent delivery attempts             
 POST /v1/ops/subscriptions                 create; returns the signing secret once (session, MANAGE_GEOFENCES + CSRF)
 PATCH /v1/ops/subscriptions/{id}           rename, re-target, filter, disable    (session, MANAGE_GEOFENCES + CSRF)
 DELETE /v1/ops/subscriptions/{id}          remove subscription and its log       (session, MANAGE_GEOFENCES + CSRF)
+
+GET  /v1/ops/tracking                      the roster with fixes and last fix    (session, VIEW_REQUESTS)
+GET  /v1/ops/tracking/summary              counts and the honest tracking state  (session, VIEW_DASHBOARD)
+GET  /v1/ops/tracking/{id}                 one subject with its latest fix       (session, VIEW_REQUESTS)
+GET  /v1/ops/tracking/{id}/trail?limit=    stored results, newest first          (session, VIEW_REQUESTS)
+POST /v1/ops/tracking                      add a consented subject               (session, LOCATE + CSRF)
+PATCH /v1/ops/tracking/{id}                pause or resume the subject           (session, LOCATE + CSRF)
+DELETE /v1/ops/tracking/{id}               remove the roster row                 (session, LOCATE + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -289,8 +300,10 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C4 (below); there is no OIDC, no
-tracking and no scheduled reports. Those arrive with their own phases and are
+Honest limits: the console UI is phase C4 plus the tracking API of phase C5a;
+the tracking screen, automated schedules, notifier channels, OIDC and scheduled
+reports are not built yet. A tracked subject is a roster row over stored
+results, not a live network feed. Those arrive with their own phases and are
 not claimed here. Peer `DOWN` requires observed exchange failures - a gateway
 that has never sent to a peer reports `IDLE`, never a health claim.
 
@@ -444,6 +457,30 @@ periodic location, and no motion or UE-availability reporting; the summary
 endpoint says so per feature. The flusher is a single scheduled loop, so a
 multi-instance deployment would need a lease or queue to avoid duplicate sends
 (the receiver's delivery-id check already makes that safe, merely wasteful).
+
+**Tracking (phase C5a).** A tracked subject is one row naming a client, one of
+the four tracking purposes (`SAFETY`, `FLEET_MANAGEMENT`, `COMMERCIAL_LBS`,
+`IOT_ASSET`) and a subscriber. Adding one needs `LOCATE` and is consent-checked
+exactly like a locate; the refusal is audited. The row keeps the pseudonymous
+`subject_ref` that consent and audit use, a masked label for the console, and
+the identifier only so the trail can find the requests the network already
+carried. No read returns the identifier, the label is masked, and deleting the
+row deletes it.
+
+A trail is not a new feed: it is the stored results of governed requests this
+client placed for this purpose, newest first, each carrying the method, shape,
+uncertainty, confidence and age the request path recorded. This deployment has
+no deferred (LDR), periodic or event-driven location subscription, so a subject
+does not move by itself; `GET /v1/ops/tracking/summary` says that in its
+`reporting` map rather than implying a live position. Automated schedules and
+notifier channels are phase C5b and are reported as unavailable until built.
+
+The client-facing `GET /v1/subscribers/{trackedId}/last-known` is scoped to the
+client that added the subject; another client's identifier answers 404 with no
+hint. It returns `found: false` with `NO_LOCATION_YET`, `NO_CONSENT` (consent is
+re-checked on every read, so a revocation takes effect) or `TRACKING_DISABLED`.
+A found answer carries `dataSource` - `REAL`, `BENCH` or `LAB_SIM` from the
+deployment's environment - beside the full fix envelope.
 
 **Console Geofencing (phase C4c).** The screen keeps four tabs - Geofences,
 Entering, Leaving and Inside - plus a Webhooks tab. The Geofences tab lists each

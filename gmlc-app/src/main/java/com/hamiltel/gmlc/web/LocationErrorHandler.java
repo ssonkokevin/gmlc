@@ -11,6 +11,7 @@ import com.hamiltel.gmlc.consent.ConsentNotFoundException;
 import com.hamiltel.gmlc.location.PrivacyNotSatisfiedException;
 import com.hamiltel.gmlc.location.RequestNotFoundException;
 import com.hamiltel.gmlc.location.RequestRejectedException;
+import com.hamiltel.gmlc.tracking.TrackedSubjectNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -72,6 +73,16 @@ public class LocationErrorHandler {
                 "no such location request");
         problem.setTitle("Not found");
         problem.setProperty("requestId", e.requestId());
+        return problem;
+    }
+
+    @ExceptionHandler(TrackedSubjectNotFoundException.class)
+    public ProblemDetail trackedSubjectNotFound(TrackedSubjectNotFoundException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                "no such tracked subject");
+        problem.setTitle("Not found");
+        problem.setProperty("code", "TRACKED_SUBJECT_NOT_FOUND");
+        problem.setProperty("trackedId", e.trackedId());
         return problem;
     }
 
