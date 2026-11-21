@@ -25,7 +25,8 @@ The split is recorded with its reasoning in the core repository under
 | Le location API, request state machine, CDRs | **Built and tested**; answers cell-ID from the cell plan when a Diameter peer is configured, fails closed otherwise |
 | Authoritative cell database, coverage geometry, CSV import with dry-run | **Built and tested** |
 | Diameter SLh RIR and SLg PLR/PLA clients, CER/CEA, TCP framing | **Built and tested**; fail closed until a peer is configured |
-| MAP (ATI, PSI, SRILCS, PSL, SLR) | Not yet |
+| MAP codecs (SRILCS, PSL, ATI), GAD circles, SCCP and M3UA framing | **Built and tested**; not yet wired to the Le request path |
+| MAP service location (SRILCS then PSL/ATI), SLR | Not yet |
 | Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
 | Dashboard | Not yet |
 | Container build | Written, **unverified** - no Docker on the build host |
@@ -201,6 +202,54 @@ empty the transport refuses every exchange with `SIGNALLING_NOT_CONFIGURED`,
 so an unconfigured deployment fails fast and visibly instead of hanging on a
 socket.
 
+## SS7 and MAP transport
+
+2G/3G location needs MAP, which rides TCAP over SCCP over MTP3. The gateway
+speaks that stack itself too - still no vendor SS7 library:
+
+- `map/Ber`: the BER subset MAP uses (single-octet tags, definite shortest
+  lengths) with a parser that refuses truncation, indefinite lengths, the
+  high-tag-number form, and long-form lengths that the short form could hold.
+- `map/Tcap`: Q.773 transaction capabilities - Begin, End, Continue, Abort,
+  Invoke, Return Result and Return Error, the dialogue portion with its
+  application-context OID, and AARQ/AARE. Local operation and error codes are
+  plain integers; a global opcode is reported as `MAP_GLOBAL_OPCODE` instead
+  of being guessed.
+- `map/MapLcs`: the location operations of TS 29.002 - SRILCS and PSL for the
+  serving MSC/SGSN, ATI for cell information, and the LCS-ClientID, QoS and
+  LocationType elements. Every argument and answer is built from explicit
+  octets, not a schema generator.
+- `map/Gad`: TS 23.032 shape 1, an ellipsoid point with uncertainty circle.
+  The uncertainty code becomes the same radius as Diameter's, so a position
+  from either face carries a comparable bound.
+- `ss7/Sccp`: Q.713 connectionless unitdata. Addresses may be a subsystem
+  number alone, a point code and subsystem number, or an E.164 global title
+  of indicator type 4 (translation type 0, ISDN numbering plan, international
+  nature of address, BCD with the 0000 filler Q.713 asks for). Truncated
+  pointers, a foreign title format and a non-decimal digit are errors, not
+  zero-filled guesses.
+- `ss7/M3uaMessage`, `ss7/TcpM3uaTransport`: RFC 4666 ASPSM (ASP Up, ASP
+  Down, Heartbeat), ASPTM (ASP Active) and DATA. The protocol-data parameter
+  carries the point codes, service indicator, network indicator and
+  signalling link selection; the SCCP message follows it. **TCP, not SCTP**:
+  RFC 4666 runs M3UA over SCTP and this host has no SCTP provider for the
+  JVM, so the transport is M3UA/TCP and a lab gateway must accept that. It is
+  not multi-homed and has no SCTP-level failover; do not treat it as a
+  production link.
+
+An exchange sends one unitdata message and returns the next one addressed to
+the gateway; correlating an answer with its dialogue is TCAP's job (by
+transaction identifier). The transport is not connected to the Le request
+path yet: cell-ID answers still come from Diameter SLh/SLg, and this codec
+set is the foundation for the MAP locator.
+
+Configuration is the `gmlc.m3ua` block. Point codes belong to the operator,
+so none is committed: with `GMLC_M3UA_LOCAL_PC` zero, or `GMLC_M3UA_HOST`
+empty, the link is disabled and every MAP exchange fails closed with
+`SIGNALLING_NOT_CONFIGURED`. `GMLC_M3UA_LOCAL_GT` adds the gateway's own
+E.164 number to the calling party; without it the calling party is the point
+code and GMLC subsystem number 145.
+
 ## The cell database
 
 The operator's cell plan decides where a cell-ID answer points, so the gateway
@@ -299,6 +348,8 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── diameter/      AVP/message codec, TCP transport, SLh and SLg clients
 ├── health/        health endpoint
 ├── location/      Le requests, state machine, locator, results, pseudonyms
+├── map/           BER, TCAP, MAP LCS operations, TS 23.032 GAD
+├── ss7/           SCCP unitdata, M3UA messages, M3UA/TCP transport
 └── web/           error mapping to RFC 7807 problems
 gmlc-app/src/main/resources/db/migration/   Flyway SQL, V1 onward
 gmlc-app/src/main/resources/location/       bundled capability profile

@@ -44,6 +44,20 @@ gmlc:
     peer-host: ${GMLC_DIAMETER_PEER_HOST:}
     peer-port: ${GMLC_DIAMETER_PEER_PORT:3868}
     timeout-ms: ${GMLC_DIAMETER_TIMEOUT_MS:5000}
+  # M3UA towards the STP for the MAP face (2G/3G location). Point codes belong
+  # to the operator, so none is committed: local-point-code 0 leaves the link
+  # disabled and every MAP request fails closed. M3UA normally runs over SCTP;
+  # this host has no SCTP provider for the JVM, so the transport is M3UA/TCP
+  # and the lab gateway must accept that (see README).
+  m3ua:
+    host: ${GMLC_M3UA_HOST:}
+    port: ${GMLC_M3UA_PORT:2905}
+    local-point-code: ${GMLC_M3UA_LOCAL_PC:0}
+    remote-point-code: ${GMLC_M3UA_REMOTE_PC:0}
+    routing-context: ${GMLC_M3UA_ROUTING_CONTEXT:-1}
+    local-global-title: ${GMLC_M3UA_LOCAL_GT:}
+    network-indicator: ${GMLC_M3UA_NI:2}
+    timeout-ms: ${GMLC_M3UA_TIMEOUT_MS:5000}
 
 logging:
   level:
