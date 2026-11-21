@@ -93,4 +93,32 @@ class AvpTest {
 
         assertThat(avp.copyOfValue()).isEqualTo(new byte[] {0, 1, 10, 0, 0, 7});
     }
+
+    @Test
+    void aPaddedTextValueIsReadWithoutItsTrailingNuls() {
+        Avp avp = new Avp(DiameterDictionary.ORIGIN_HOST, false, 0,
+                new byte[] {'m', 'm', 'e', '.', 'l', 'a', 'b', 0, 0});
+
+        assertThat(avp.asText()).isEqualTo("mme.lab");
+    }
+
+    @Test
+    void aFixedLengthValueDropsUpToThreeTrailingPaddingOctets() {
+        byte[] padded = {0x00, (byte) 0xF1, 0x10, 0x00, 0x0A, 0x1B, 0x2C, 0x00};
+
+        assertThat(Avp.vendor(DiameterDictionary.ECGI, padded).fixedValue(7))
+                .isEqualTo(new byte[] {0x00, (byte) 0xF1, 0x10, 0x00, 0x0A, 0x1B, 0x2C});
+    }
+
+    @Test
+    void aFixedLengthValueOfTheWrongLengthIsRefused() {
+        assertThatThrownBy(() -> Avp.vendor(DiameterDictionary.ECGI, new byte[6]).fixedValue(7))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("6 octets");
+        assertThatThrownBy(() -> Avp.vendor(DiameterDictionary.ECGI, new byte[11]).fixedValue(7))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Avp.vendor(DiameterDictionary.ECGI,
+                new byte[] {0x00, (byte) 0xF1, 0x10, 0x00, 0x0A, 0x1B, 0x2C, 0x01}).fixedValue(7))
+                .isInstanceOf(IllegalStateException.class);
+    }
 }

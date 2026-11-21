@@ -75,11 +75,11 @@ public class SlgClient {
 
         Optional<Avp> ecgi = answer.first(DiameterDictionary.ECGI);
         if (ecgi.isPresent()) {
-            return Optional.of(lteCell(ecgi.get().copyOfValue(), fulfilled, age));
+            return Optional.of(lteCell(ecgi.get().fixedValue(7), fulfilled, age));
         }
         Optional<Avp> cgi = answer.first(DiameterDictionary.CELL_GLOBAL_IDENTITY);
         if (cgi.isPresent()) {
-            return Optional.of(gsmCell(cgi.get().copyOfValue(), fulfilled, age));
+            return Optional.of(gsmCell(cgi.get().fixedValue(7), fulfilled, age));
         }
         return Optional.empty();
     }

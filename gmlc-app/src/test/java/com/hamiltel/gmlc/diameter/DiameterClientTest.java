@@ -136,6 +136,26 @@ class DiameterClientTest {
     }
 
     @Test
+    void provideLocationAcceptsAnEcgiWhosePeerCountedPaddingInTheLength() throws Exception {
+        byte[] ecgi = new byte[] {0x00, (byte) 0xF1, 0x10, 0x00, 0x0A, 0x1B, 0x01, 0x00};
+        try (DiameterTestPeer peer = new DiameterTestPeer(request -> success(
+                Avp.vendor(DiameterDictionary.ECGI, ecgi)));
+             TcpDiameterTransport transport = new TcpDiameterTransport(
+                     "127.0.0.1", peer.port(), PROPERTIES.originHost(), PROPERTIES.originRealm(), "test")) {
+
+            assertThat(new SlgClient(transport, onPort(peer.port()))
+                    .provideLocation(ServingNode.of("mme1.lab.local"),
+                            new SubscriberId("001010000000001", null), 100, "ops-console", false))
+                    .hasValueSatisfying(found -> {
+                        assertThat(found.rat()).isEqualTo("LTE");
+                        assertThat(found.mcc()).isEqualTo("001");
+                        assertThat(found.mnc()).isEqualTo("01");
+                        assertThat(found.cellCode()).isEqualTo("662273");
+                    });
+        }
+    }
+
+    @Test
     void provideLocationParsesAGsmCgiWithItsAreaCode() throws Exception {
         byte[] cgi = new byte[] {0x00, (byte) 0xF1, 0x10, 0x01, 0x01, 0x00, 0x01};
         try (DiameterTestPeer peer = new DiameterTestPeer(request -> success(

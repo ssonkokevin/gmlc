@@ -154,7 +154,40 @@ public record Avp(int code, boolean vendorSpecific, long vendorId, byte[] value)
     }
 
     public String asText() {
-        return new String(value, StandardCharsets.UTF_8);
+        int end = value.length;
+        while (end > 0 && value[end - 1] == 0) {
+            end--;
+        }
+        return new String(value, 0, end, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The value of a fixed-length field such as an ECGI. RFC 6733 excludes the
+     * padding from the AVP length, but some peers include it, so up to three
+     * trailing zero octets are accepted on top of the expected length.
+     */
+    public byte[] fixedValue(int octets) {
+        if (octets <= 0) {
+            throw new IllegalArgumentException("a fixed value needs a positive length");
+        }
+        if (value.length == octets) {
+            return value.clone();
+        }
+        int padding = value.length - octets;
+        if (padding > 0 && padding <= 3) {
+            boolean zero = true;
+            for (int at = octets; at < value.length; at++) {
+                if (value[at] != 0) {
+                    zero = false;
+                    break;
+                }
+            }
+            if (zero) {
+                return Arrays.copyOf(value, octets);
+            }
+        }
+        throw new IllegalStateException("AVP " + code + " is " + value.length
+                + " octets, expected " + octets);
     }
 
     public long asUnsigned32() {
