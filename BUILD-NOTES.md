@@ -12,6 +12,11 @@ are not deployment instructions.
   change.
 - `mvn -o test` runs the whole reactor: one module, `gmlc-app`, about 25 s,
   most of it embedded PostgreSQL start/stop.
+- `bcprov-jdk18on:1.78.1` was fetched from Maven Central with `curl` (jar and
+  pom only) and placed in `~/.m2` by hand, because the `dependency` plugin is
+  not primed offline. It is the only artifact added for Argon2id. On a host
+  with a working online Maven, resolve it normally; on this host, the jar is
+  already in the local repository and the offline build finds it.
 
 ## The Spring Boot plugin version is pinned to 4.2.0
 

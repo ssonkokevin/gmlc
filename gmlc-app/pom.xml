@@ -42,6 +42,14 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
+        <!-- Argon2id for operator passwords. Only the lightweight Argon2
+             primitive is used; the provider is never registered with the JCE. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

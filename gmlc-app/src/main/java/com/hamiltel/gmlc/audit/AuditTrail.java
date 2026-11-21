@@ -35,6 +35,11 @@ public class AuditTrail {
             VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)
             """;
 
+    private static final String INSERT_OPERATOR = """
+            INSERT INTO audit_event (tenant_id, actor_user_id, action, outcome, detail)
+            VALUES (?, ?, ?, ?, ?::jsonb)
+            """;
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -55,6 +60,27 @@ public class AuditTrail {
     public void recordForSubject(long tenantId, UUID actorClientId, String action, String subjectRef,
                                  UUID requestId, Outcome outcome, Map<String, Object> detail) {
         write(subjectRef, tenantId, actorClientId, action, requestId, outcome, detail);
+    }
+
+    /**
+     * A console action. The actor is the person, not a client; detail may hold
+     * the remote address and the reason, never a credential or a position.
+     */
+    public void recordOperator(long tenantId, UUID actorUserId, String action, Outcome outcome,
+                               Map<String, Object> detail) {
+        String json;
+        try {
+            json = detail == null || detail.isEmpty() ? null : mapper.writeValueAsString(detail);
+        } catch (JsonProcessingException e) {
+            log.warn("audit detail not serialisable for action {}", action);
+            return;
+        }
+        try {
+            jdbc.update(INSERT_OPERATOR, tenantId, actorUserId, action, outcome.name(), json);
+        } catch (RuntimeException e) {
+            log.warn("operator audit write failed for action {}: {}", action,
+                    e.getClass().getSimpleName());
+        }
     }
 
     private void write(String subjectRef, long tenantId, UUID actorClientId, String action,

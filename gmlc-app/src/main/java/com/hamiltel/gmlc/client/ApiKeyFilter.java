@@ -50,7 +50,11 @@ public class ApiKeyFilter extends OncePerRequestFilter {
                 || !path.startsWith("/v1/")
                 || path.equals("/v1/health")
                 || path.equals("/v1/admin")
-                || path.startsWith("/v1/admin/");
+                || path.startsWith("/v1/admin/")
+                // The operator console is session-authenticated, never by an
+                // API key; OpsSessionFilter owns these paths.
+                || path.equals("/v1/ops")
+                || path.startsWith("/v1/ops/");
     }
 
     @Override

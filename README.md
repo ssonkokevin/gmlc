@@ -30,6 +30,8 @@ The split is recorded with its reasoning in the core repository under
 | MAP SLR (network-initiated service response) | Not yet |
 | Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
 | Dashboard | **Built and tested**; static page, schematic map, no basemap |
+| Operator console identity: Argon2id, TOTP, sessions, CSRF, roles, lockout, audit | **Built and tested** |
+| Operator console UI and aggregate endpoints | Not yet (phase C1) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -53,6 +55,16 @@ GET  /v1/cdrs            the caller's own completed records                (API 
 
 GET  /v1/cells?rat=&area=      list cells, paged, no geometry rings        (API key)
 GET  /v1/cells/{rat}/{id}      one cell with its coverage geometry         (API key)
+
+POST /v1/ops/session     operator sign-in: password plus TOTP              (open, rate-limited by lockout)
+DELETE /v1/ops/session   operator sign-out                                 (session + CSRF)
+GET  /v1/ops/me          the signed-in operator and its permissions        (session)
+
+GET  /v1/ops/users       list operator accounts                            (session, MANAGE_USERS)
+POST /v1/ops/users       create one; returns its password and TOTP once    (session, MANAGE_USERS)
+PATCH /v1/ops/users/{id} change role or enabled state                      (session, MANAGE_USERS)
+POST /v1/ops/users/{id}/sign-out  end every session that user holds        (session, MANAGE_USERS)
+POST /v1/ops/users/{id}/password  set a new password                       (session, MANAGE_USERS)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -117,6 +129,71 @@ request and a licensing question), the map draws the first 500 cells of the
 plan, there is no server-side session, and the locate form cannot produce a
 position when no signalling peer is configured - it shows `NO_LCS_SOURCE`,
 which is the same answer the API gives.
+
+## Operator console identity (phase C1)
+
+Operators are people with accounts, not clients with API keys. The identity
+layer is built; the console UI and its aggregate endpoints follow in the same
+phase. Two surfaces exist today:
+
+- `/client` (the page above) is for customers who hold their own API key;
+- `/v1/ops/**` is for operators and uses a session, never an API key. The API
+  key filter deliberately skips the prefix, and the operator filter ignores
+  `Authorization` entirely, so a client key cannot open the console.
+
+**Sign-in.** Username, password (Argon2id, OWASP defaults: 19 MiB, 2 passes,
+1 lane, 16-byte salt, 32-byte hash, PHC string) and a six-digit TOTP code
+(RFC 6238, HMAC-SHA1, 30-second step, one step of clock skew). A wrong
+username burns the same Argon2 cost as a wrong password. Three or five
+failures (`GMLC_OPS_LOCKOUT_THRESHOLD`) lock the account for
+`GMLC_OPS_LOCKOUT_MINUTES`, and the response is `423` with `Retry-After`.
+
+**Session.** A 256-bit random token in the cookie `GMLC_OPS`
+(`HttpOnly; Secure; SameSite=Strict; Path=/v1/ops`). Only its SHA-256 is
+stored. The cookie is `Secure` by default; a plain-HTTP lab must set
+`GMLC_OPS_COOKIE_SECURE=false` explicitly or the browser will not return it.
+Two clocks apply: idle (`GMLC_OPS_SESSION_IDLE_MINUTES`, default 15, sliding)
+and absolute (`GMLC_OPS_SESSION_ABSOLUTE_HOURS`, default 8). An expired,
+revoked or disabled session is 401 on the next call.
+
+**CSRF.** The session row also holds a CSRF token. Sign-in returns it in the
+JSON body (never in a script-readable cookie); every `POST`, `PUT`, `PATCH`
+and `DELETE` under `/v1/ops` must echo it in `X-CSRF-Token`, or the answer is
+`403 CSRF_REQUIRED`.
+
+**Roles.** `ADMIN`, `OPERATOR`, `ANALYST`, `VIEWER`, each an explicit set in
+`ops/OpsRole`:
+
+| Permission | ADMIN | OPERATOR | ANALYST | VIEWER |
+|---|---|---|---|---|
+| VIEW_DASHBOARD, VIEW_REQUESTS | yes | yes | yes | yes |
+| LOCATE, REVEAL_IDENTIFIERS, VIEW_RAW_SIGNALLING | yes | yes | no | no |
+| MANAGE_GEOFENCES | yes | yes | no | no |
+| EXPORT_CDR | yes | no | yes | no |
+| MANAGE_CLIENTS, MANAGE_CONFIG, MANAGE_USERS, MANAGE_LICENCE | yes | no | no | no |
+
+Routes declare `@OpsRequires(...)`; an interceptor enforces it and audits
+every denial. The last enabled administrator cannot be disabled or demoted,
+and an operator cannot disable their own account.
+
+**Audit.** Sign-ins (allowed and denied, with reason and remote address),
+sign-outs, user creation, role and enablement changes, password changes and
+forced sign-outs are written to `audit_event.actor_user_id`. No audit row ever
+holds a password, TOTP secret or position.
+
+**Seeding.** Set `GMLC_OPS_BOOTSTRAP_USER`, `GMLC_OPS_BOOTSTRAP_PASSWORD` and
+`GMLC_OPS_BOOTSTRAP_TOTP_SECRET` once. The first start creates that
+administrator if the username does not exist and never updates it later, so a
+stale environment value cannot reset a live account. With any of the three
+blank, no account is created and the console stays closed.
+
+**Masking.** `ops/OpsMasking` keeps the first five and last two characters of
+MSISDN, IMSI and IMEI. Revealing is a permission and writes an audit row; the
+rule is covered by unit tests and will be applied by the console pages.
+
+Honest limits: there is no UI yet, no OIDC, no password-age policy and no
+required second-person approval for configuration changes; those arrive with
+their own phases and are not claimed here.
 
 ## The Le request path
 
@@ -407,6 +484,7 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── health/        health endpoint
 ├── location/      Le requests, state machine, locator, results, pseudonyms
 ├── map/           BER, TCAP, MAP LCS operations, TS 23.032 GAD
+├── ops/           operator accounts, sessions, CSRF, roles, masking
 ├── ss7/           SCCP unitdata, M3UA messages, M3UA/TCP transport
 └── web/           error mapping to RFC 7807 problems, dashboard headers
 gmlc-app/src/main/resources/db/migration/   Flyway SQL, V1 onward

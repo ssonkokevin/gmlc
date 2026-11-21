@@ -69,6 +69,29 @@ gmlc:
   map:
     mlc-number: ${GMLC_MAP_MLC_NUMBER:}
     hlr-point-code: ${GMLC_MAP_HLR_PC:0}
+  # Operator console. Accounts are people, not API clients; the console never
+  # consumes a client quota. The session cookie is Secure by default - a
+  # plain-HTTP lab must set GMLC_OPS_COOKIE_SECURE=false explicitly, or the
+  # browser will refuse to return the cookie and every call will be 401.
+  ops:
+    cookie-secure: ${GMLC_OPS_COOKIE_SECURE:true}
+    session-idle-minutes: ${GMLC_OPS_SESSION_IDLE_MINUTES:15}
+    session-absolute-hours: ${GMLC_OPS_SESSION_ABSOLUTE_HOURS:8}
+    lockout-threshold: ${GMLC_OPS_LOCKOUT_THRESHOLD:5}
+    lockout-minutes: ${GMLC_OPS_LOCKOUT_MINUTES:15}
+    totp-issuer: ${GMLC_OPS_TOTP_ISSUER:Hamiltel GMLC}
+    totp-period-seconds: ${GMLC_OPS_TOTP_PERIOD_SECONDS:30}
+    # Argon2id cost. The defaults are the OWASP recommendation; a test or a
+    # constrained host may lower them, and existing hashes keep their cost.
+    argon2-memory-kib: ${GMLC_OPS_ARGON2_MEMORY_KIB:19456}
+    argon2-iterations: ${GMLC_OPS_ARGON2_ITERATIONS:2}
+    argon2-parallelism: ${GMLC_OPS_ARGON2_PARALLELISM:1}
+    # The first administrator, created only when that username does not exist.
+    # Set these per deployment; blank leaves the console closed until an
+    # account is inserted deliberately.
+    bootstrap-username: ${GMLC_OPS_BOOTSTRAP_USER:}
+    bootstrap-password: ${GMLC_OPS_BOOTSTRAP_PASSWORD:}
+    bootstrap-totp-secret: ${GMLC_OPS_BOOTSTRAP_TOTP_SECRET:}
 
 logging:
   level:
