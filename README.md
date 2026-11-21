@@ -33,7 +33,8 @@ The split is recorded with its reasoning in the core repository under
 | Operator console identity: Argon2id, TOTP, sessions, CSRF, roles, lockout, audit | **Built and tested** |
 | Operator console reads: summary, throughput, mix, requests, detail, deferred | **Built and tested** (phase C1b) |
 | Peer health from observed exchanges, alert engine, acknowledgement | **Built and tested** (phase C1c) |
-| Operator console UI (React), tracking, geofencing, reports | Not yet (phases C1d onwards) |
+| Operator console UI (React): shell, sign-in, Operations Dashboard | **Built and tested** (phase C1d) |
+| Console Location Request, Monitoring & Tracing, Geofencing, Tracking, Reports, Administration | Not yet (phases C2-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -41,7 +42,8 @@ Nothing in this repository has talked to a real operator network.
 ## Endpoints today
 
 ```
-GET  /                   the operator dashboard (static page)              (open)
+GET  /                   the API-key client dashboard (static page)        (open)
+GET  /console/           the operator console (React bundle, static)       (open, sign-in inside)
 GET  /v1/health          liveness, database, capability profile validity   (open)
 GET  /v1/capabilities    the tenant's capability profile                   (API key)
 GET  /v1/clients/me      the calling client's own configuration            (API key)
@@ -252,10 +254,56 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: there is no UI yet, no OIDC, no geofencing, no tracking and no
-scheduled reports; those arrive with their own phases and are not claimed here.
-Peer `DOWN` requires observed exchange failures - a gateway that has never sent
-to a peer reports `IDLE`, never a health claim.
+Honest limits: the console UI is phase C1d (below); there is no OIDC, no
+geofencing, no tracking and no scheduled reports. Those arrive with their own
+phases and are not claimed here. Peer `DOWN` requires observed exchange
+failures - a gateway that has never sent to a peer reports `IDLE`, never a
+health claim.
+
+**Console UI (phase C1d).** `/console/` serves the operator console: a React
+19 + TypeScript bundle built by Vite into
+`gmlc-app/src/main/resources/static/console`. The shell has the sidebar
+sections (Operations, Location intelligence, Administration), a top bar with
+breadcrumb, deployment badge (`environment` and `dataSource` from the session),
+search, alert count, help and the account menu. Sign-in posts to
+`/v1/ops/session`; the CSRF token stays in memory and is echoed as
+`X-CSRF-Token`; the session cookie stays HttpOnly.
+
+The Operations Dashboard reads the phase C1b/C1c endpoints for the chosen
+window: six KPI cards with sparklines and deltas, throughput split by MAP,
+DIAMETER and unattributed, an operation-mix donut with positioning method and
+result codes, peer health, active alerts with acknowledgement for holders of
+`ACK_ALERTS`, and the newest masked requests with method, uncertainty, age,
+response time and result code. Figures the gateway cannot supply say why
+(alerts switched off, LDR not built, no p95 objective) instead of showing a
+zero.
+
+The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
+inline script or style, no CDN, no external font, no map tiles. Charts are
+hand-built SVG (presentation attributes, not style attributes) and each one
+has a `<details>` data table so the same numbers are readable without the
+graphic. Other sidebar screens say plainly that they are not built yet; no
+placeholder figures are shown.
+
+Building the console (Node is needed only on the build machine; the output is
+committed so an offline Maven build still serves it):
+
+```bash
+cd gmlc-app/console
+npm install
+npm run build      # writes ../src/main/resources/static/console
+```
+
+`npm run typecheck` is a strict `tsc --noEmit`. Rebuild after changing
+anything under `gmlc-app/console/src`. `ConsoleTest` checks that the entry
+point is served as HTML, loads only same-origin bundled assets, carries the
+strict policy on the page and its assets, and that serving it does not open
+`/v1/ops/**`.
+
+Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
+[sign-in](docs/location/console-signin.png),
+[dashboard](docs/location/console-dashboard.png),
+[a screen that is not built yet](docs/location/console-not-built.png).
 
 ## The Le request path
 
@@ -551,7 +599,8 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 └── web/           error mapping to RFC 7807 problems, dashboard headers
 gmlc-app/src/main/resources/db/migration/   Flyway SQL, V1 onward
 gmlc-app/src/main/resources/location/       bundled capability profile
-gmlc-app/src/main/resources/static/         index.html, dashboard.css, dashboard.js
+gmlc-app/src/main/resources/static/         client dashboard and built console bundle
+gmlc-app/console/                           React + TypeScript console source (Vite)
 ```
 
 ## Boundaries

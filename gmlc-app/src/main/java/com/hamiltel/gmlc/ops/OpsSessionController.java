@@ -50,7 +50,8 @@ public class OpsSessionController {
         OpsSessionFilter.addCookie(response, issued.token(), maxAge, properties.cookieSecure());
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store")
-                .body(SessionView.of(issued.user(), issued.csrfToken(), issued.absoluteExpiresAt()));
+                .body(SessionView.of(issued.user(), issued.csrfToken(), issued.absoluteExpiresAt(),
+                        properties));
     }
 
     @DeleteMapping("/session")
@@ -67,7 +68,7 @@ public class OpsSessionController {
         Instant expiresAt = sessionRepository.find(context.sessionId())
                 .map(OpsSession::absoluteExpiresAt)
                 .orElse(Instant.now());
-        return SessionView.of(context.user(), context.csrfToken(), expiresAt);
+        return SessionView.of(context.user(), context.csrfToken(), expiresAt, properties);
     }
 
     public record LoginRequest(
@@ -83,13 +84,17 @@ public class OpsSessionController {
             String role,
             List<String> permissions,
             String csrfToken,
-            Instant expiresAt) {
+            Instant expiresAt,
+            String environment,
+            String dataSource) {
 
-        static SessionView of(OpsUser user, String csrfToken, Instant expiresAt) {
+        static SessionView of(OpsUser user, String csrfToken, Instant expiresAt,
+                              OpsProperties properties) {
             return new SessionView(user.userId(), user.username(), user.displayName(),
                     user.role().name(),
                     user.role().permissions().stream().map(Enum::name).sorted().toList(),
-                    csrfToken, expiresAt);
+                    csrfToken, expiresAt,
+                    properties.normalisedEnvironment(), properties.dataSourceLabel());
         }
     }
 }
