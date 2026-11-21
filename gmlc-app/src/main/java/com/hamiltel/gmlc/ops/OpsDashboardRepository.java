@@ -364,6 +364,21 @@ public class OpsDashboardRepository {
         return rows.get(0);
     }
 
+    /**
+     * Failures whose cause is the cell plan rather than the subscriber or the
+     * network: a cell the plan does not hold, a cell without a radius, or a
+     * cell code that matches more than one plan row.
+     */
+    public long cellGapFailures(long tenantId, Instant from, Instant to) {
+        Long count = jdbc.queryForObject("""
+                SELECT count(*) FROM cdr
+                WHERE tenant_id = ? AND created_at >= ? AND created_at < ?
+                  AND record_status IN ('FAILED', 'ABORTED', 'TIMEOUT')
+                  AND result_code IN ('CELL_NOT_IN_PLAN', 'CELL_WITHOUT_RADIUS', 'AMBIGUOUS_CELL')
+                """, Long.class, tenantId, Timestamp.from(from), Timestamp.from(to));
+        return count == null ? 0 : count;
+    }
+
     // ----------------------------------------------------------------- records
 
     public record Totals(

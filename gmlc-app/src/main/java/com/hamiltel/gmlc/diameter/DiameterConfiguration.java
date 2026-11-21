@@ -1,5 +1,7 @@
 package com.hamiltel.gmlc.diameter;
 
+import com.hamiltel.gmlc.ops.MonitoredDiameterTransport;
+import com.hamiltel.gmlc.ops.PeerHealth;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,13 +16,16 @@ import org.springframework.context.annotation.Configuration;
 public class DiameterConfiguration {
 
     @Bean(destroyMethod = "close")
-    public DiameterTransport diameterTransport(DiameterProperties properties) {
+    public DiameterTransport diameterTransport(DiameterProperties properties,
+                                               PeerHealth peerHealth) {
         if (!properties.configured()) {
             return DiameterTransport.disabled(
                     "no Diameter peer is configured; set GMLC_DIAMETER_PEER_HOST");
         }
-        return new TcpDiameterTransport(properties.peerHost(), properties.peerPort(),
-                properties.originHost(), properties.originRealm(), "hamiltel-gmlc");
+        return new MonitoredDiameterTransport(
+                new TcpDiameterTransport(properties.peerHost(), properties.peerPort(),
+                        properties.originHost(), properties.originRealm(), "hamiltel-gmlc"),
+                peerHealth);
     }
 
     @Bean

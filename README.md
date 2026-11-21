@@ -32,7 +32,8 @@ The split is recorded with its reasoning in the core repository under
 | Dashboard | **Built and tested**; static page, schematic map, no basemap |
 | Operator console identity: Argon2id, TOTP, sessions, CSRF, roles, lockout, audit | **Built and tested** |
 | Operator console reads: summary, throughput, mix, requests, detail, deferred | **Built and tested** (phase C1b) |
-| Operator console UI (React), alert engine, tracking, geofencing, reports | Not yet (phases C1c onwards) |
+| Peer health from observed exchanges, alert engine, acknowledgement | **Built and tested** (phase C1c) |
+| Operator console UI (React), tracking, geofencing, reports | Not yet (phases C1d onwards) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -71,6 +72,9 @@ GET  /v1/ops/summary?range=1h|24h|7d|30d   KPI totals, deltas, chart points (ses
 GET  /v1/ops/throughput?range=&bucket=     MAP vs DIAMETER per bucket      (session, VIEW_DASHBOARD)
 GET  /v1/ops/mix?range=                    operation, method, RAT, result     (session, VIEW_DASHBOARD)
 GET  /v1/ops/deferred                      the honest state of LDR support    (session, VIEW_DASHBOARD)
+GET  /v1/ops/peers                         observed peer state and thresholds (session, VIEW_DASHBOARD)
+GET  /v1/ops/alerts?state=&limit=          stored alerts, deduplicated while open (session, VIEW_DASHBOARD)
+POST /v1/ops/alerts/{id}/acknowledge       record the person, keep it open    (session, ACK_ALERTS + CSRF)
 GET  /v1/ops/requests?range=&state=&protocol=&purpose=&clientId=&recordStatus=&limit=&offset=
                                            paged request list, masked        (session, VIEW_REQUESTS)
 GET  /v1/ops/requests/{id}?reveal=false    one request, result, CDR, timeline (session, VIEW_REQUESTS;
@@ -177,6 +181,7 @@ and `DELETE` under `/v1/ops` must echo it in `X-CSRF-Token`, or the answer is
 | Permission | ADMIN | OPERATOR | ANALYST | VIEWER |
 |---|---|---|---|---|
 | VIEW_DASHBOARD, VIEW_REQUESTS | yes | yes | yes | yes |
+| ACK_ALERTS | yes | yes | no | no |
 | LOCATE, REVEAL_IDENTIFIERS, VIEW_RAW_SIGNALLING | yes | yes | no | no |
 | MANAGE_GEOFENCES | yes | yes | no | no |
 | EXPORT_CDR | yes | no | yes | no |
@@ -219,15 +224,38 @@ Every response carries an honesty label. `GMLC_OPS_ENVIRONMENT` is `LAB`,
 when the CDR is written; a CDR with no recognised operation appears as
 `UNATTRIBUTED` rather than being guessed into one.
 
-A feature that is not built says so: `deferred`, `alerts` and `licence` return
+A feature that is not built says so: `deferred` and `licence` return
 `available: false` with a reason, and `deferred` additionally reports the real
-`open` and `pastDeadline` counts. The figures are aggregate SQL over stored
-rows; `OpsDashboardTest` recomputes each of them with direct SQL and fails if
-the endpoint and the database disagree.
+`open` and `pastDeadline` counts. Alerts are real since phase C1c: `alerts`
+reports the open and acknowledged-open counts, or `available: false` with a
+reason when the evaluator is switched off. The figures are aggregate SQL over
+stored rows; `OpsDashboardTest` recomputes each of them with direct SQL and
+fails if the endpoint and the database disagree.
 
-Honest limits: there is no UI yet, no OIDC, no alert engine, no geofencing, no
-tracking and no scheduled reports; those arrive with their own phases and are
-not claimed here.
+**Peers and alerts (phase C1c).** The transport wrappers record one outcome per
+exchange, so `GET /v1/ops/peers` reports `IDLE` before any traffic, `UP` when
+the last exchange succeeded and `DOWN` when it failed, with the running
+counters, the consecutive-failure streak, the last exchange times and the last
+error code. An unconfigured face is `NOT_CONFIGURED`; point codes are never
+returned. The same response shows the thresholds in force.
+
+`OpsAlertEngine` evaluates four conditions from stored rows every
+`GMLC_OPS_ALERTS_EVAL_SECONDS` over the last
+`GMLC_OPS_ALERTS_WINDOW_MINUTES`: `PEER_DOWN` (a configured face with
+`GMLC_OPS_ALERTS_PEER_FAILURES` consecutive failures), `ERROR_RATE` (failed
+share at or above `GMLC_OPS_ALERTS_ERROR_RATE`, judged only after
+`GMLC_OPS_ALERTS_MIN_FINISHED` finished requests), `LATENCY_SLO` (measured p95
+above `GMLC_OPS_SLO_P95_MS`, only while that objective is non-zero) and
+`CELL_DB_GAP` (failed requests whose result code says the cell plan cannot
+answer). One open row per condition: a repeated evaluation refreshes
+`lastSeenAt` instead of adding rows, and the engine closes a condition it no
+longer observes. Acknowledging with `ACK_ALERTS` records the operator and
+writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
+
+Honest limits: there is no UI yet, no OIDC, no geofencing, no tracking and no
+scheduled reports; those arrive with their own phases and are not claimed here.
+Peer `DOWN` requires observed exchange failures - a gateway that has never sent
+to a peer reports `IDLE`, never a health claim.
 
 ## The Le request path
 

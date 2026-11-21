@@ -8,6 +8,7 @@ package com.hamiltel.gmlc.ops;
 public enum OpsPermission {
     VIEW_DASHBOARD,
     VIEW_REQUESTS,
+    ACK_ALERTS,
     LOCATE,
     REVEAL_IDENTIFIERS,
     VIEW_RAW_SIGNALLING,

@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import static com.hamiltel.gmlc.ops.OpsPermission.ACK_ALERTS;
 import static com.hamiltel.gmlc.ops.OpsPermission.EXPORT_CDR;
 import static com.hamiltel.gmlc.ops.OpsPermission.LOCATE;
 import static com.hamiltel.gmlc.ops.OpsPermission.MANAGE_CLIENTS;
@@ -26,8 +27,8 @@ public enum OpsRole {
 
     ADMIN(EnumSet.allOf(OpsPermission.class)),
 
-    OPERATOR(EnumSet.of(VIEW_DASHBOARD, VIEW_REQUESTS, LOCATE, REVEAL_IDENTIFIERS,
-            VIEW_RAW_SIGNALLING, MANAGE_GEOFENCES)),
+    OPERATOR(EnumSet.of(VIEW_DASHBOARD, VIEW_REQUESTS, ACK_ALERTS, LOCATE,
+            REVEAL_IDENTIFIERS, VIEW_RAW_SIGNALLING, MANAGE_GEOFENCES)),
 
     ANALYST(EnumSet.of(VIEW_DASHBOARD, VIEW_REQUESTS, EXPORT_CDR)),
 

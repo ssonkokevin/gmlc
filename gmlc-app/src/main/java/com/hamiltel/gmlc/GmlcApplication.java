@@ -1,13 +1,17 @@
 package com.hamiltel.gmlc;
 
 import com.hamiltel.gmlc.config.GmlcProperties;
+import com.hamiltel.gmlc.config.OpsAlertProperties;
 import com.hamiltel.gmlc.config.OpsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties({GmlcProperties.class, OpsProperties.class})
+@EnableScheduling
+@EnableConfigurationProperties({GmlcProperties.class, OpsProperties.class,
+        OpsAlertProperties.class})
 public class GmlcApplication {
 
     public static void main(String[] args) {

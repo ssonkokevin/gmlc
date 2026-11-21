@@ -1,6 +1,7 @@
 package com.hamiltel.gmlc.ops;
 
 import com.hamiltel.gmlc.audit.AuditTrail;
+import com.hamiltel.gmlc.config.OpsAlertProperties;
 import com.hamiltel.gmlc.config.OpsProperties;
 import com.hamiltel.gmlc.location.LocationResultRepository;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,26 +37,32 @@ public class OpsDashboardController {
     private static final String DEFERRED_REASON =
             "deferred location (LDR) is not implemented in this deployment; open requests"
                     + " are reported under inFlight";
-    private static final String ALERTS_REASON =
-            "the alert engine arrives in phase C1c; no threshold is evaluated yet";
     private static final String LICENCE_REASON =
             "licence metering is not wired in this deployment";
     private static final String FALLBACK_REASON =
             "the MAP locator chooses ATI or PSL from the SRI answer and never attempts both,"
                     + " so there is no fallback step to measure";
+    private static final String ALERTS_DISABLED_REASON =
+            "alert evaluation is disabled in this deployment (gmlc.ops.alerts.enabled=false)";
 
     private final OpsDashboardRepository dashboard;
     private final LocationResultRepository results;
+    private final OpsAlertRepository alerts;
     private final AuditTrail audit;
     private final OpsProperties properties;
+    private final OpsAlertProperties alertProperties;
 
     public OpsDashboardController(OpsDashboardRepository dashboard,
-                                  LocationResultRepository results, AuditTrail audit,
-                                  OpsProperties properties) {
+                                  LocationResultRepository results,
+                                  OpsAlertRepository alerts, AuditTrail audit,
+                                  OpsProperties properties,
+                                  OpsAlertProperties alertProperties) {
         this.dashboard = dashboard;
         this.results = results;
+        this.alerts = alerts;
         this.audit = audit;
         this.properties = properties;
+        this.alertProperties = alertProperties;
     }
 
     @GetMapping("/summary")
@@ -92,9 +99,17 @@ public class OpsDashboardController {
                 totals.accuracyFulfilledRate(),
                 slo,
                 new Feature(false, DEFERRED_REASON),
-                new Feature(false, ALERTS_REASON),
+                alertsState(context.tenantId()),
                 new Feature(false, LICENCE_REASON),
                 series);
+    }
+
+    private AlertState alertsState(long tenantId) {
+        if (!alertProperties.enabled()) {
+            return new AlertState(false, 0, 0, ALERTS_DISABLED_REASON);
+        }
+        return new AlertState(true, alerts.openCount(tenantId),
+                alerts.acknowledgedOpenCount(tenantId), null);
     }
 
     @GetMapping("/throughput")
@@ -257,6 +272,9 @@ public class OpsDashboardController {
     public record Feature(boolean available, String reason) {
     }
 
+    public record AlertState(boolean available, long open, long acknowledgedOpen, String reason) {
+    }
+
     public record SeriesPoint(Instant bucket, long requests, long answered, long failed,
                               Double averageResponseMs, Double p95ResponseMs,
                               Double successRate) {
@@ -284,7 +302,7 @@ public class OpsDashboardController {
             Double accuracyFulfilledRate,
             Integer sloP95Ms,
             Feature deferred,
-            Feature alerts,
+            AlertState alerts,
             Feature licence,
             List<SeriesPoint> series) {
     }

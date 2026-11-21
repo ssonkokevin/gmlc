@@ -100,6 +100,18 @@ gmlc:
     bootstrap-username: ${GMLC_OPS_BOOTSTRAP_USER:}
     bootstrap-password: ${GMLC_OPS_BOOTSTRAP_PASSWORD:}
     bootstrap-totp-secret: ${GMLC_OPS_BOOTSTRAP_TOTP_SECRET:}
+    # Alert thresholds, evaluated over recorded traffic and observed transport
+    # outcomes. A peer is never probed: DOWN means exchanges were attempted and
+    # failed. The values in force are returned by GET /v1/ops/peers so the
+    # console shows what it is judging against.
+    alerts:
+      enabled: ${GMLC_OPS_ALERTS_ENABLED:true}
+      eval-seconds: ${GMLC_OPS_ALERTS_EVAL_SECONDS:60}
+      window-minutes: ${GMLC_OPS_ALERTS_WINDOW_MINUTES:15}
+      min-finished: ${GMLC_OPS_ALERTS_MIN_FINISHED:10}
+      error-rate-threshold: ${GMLC_OPS_ALERTS_ERROR_RATE:0.25}
+      peer-failure-threshold: ${GMLC_OPS_ALERTS_PEER_FAILURES:3}
+      cell-gap-threshold: ${GMLC_OPS_ALERTS_CELL_GAP:1}
 
 logging:
   level:

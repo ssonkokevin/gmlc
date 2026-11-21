@@ -1,5 +1,7 @@
 package com.hamiltel.gmlc.ss7;
 
+import com.hamiltel.gmlc.ops.MonitoredM3uaTransport;
+import com.hamiltel.gmlc.ops.PeerHealth;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,13 +16,15 @@ import org.springframework.context.annotation.Configuration;
 public class M3uaConfiguration {
 
     @Bean(destroyMethod = "close")
-    public M3uaTransport m3uaTransport(M3uaProperties properties) {
+    public M3uaTransport m3uaTransport(M3uaProperties properties, PeerHealth peerHealth) {
         if (!properties.configured()) {
             return M3uaTransport.disabled(
                     "no M3UA signalling gateway is configured; set GMLC_M3UA_HOST and GMLC_M3UA_LOCAL_PC");
         }
-        return new TcpM3uaTransport(properties.host(), properties.port(),
-                properties.localPointCode(), properties.networkIndicator(),
-                properties.routingContextOrNull());
+        return new MonitoredM3uaTransport(
+                new TcpM3uaTransport(properties.host(), properties.port(),
+                        properties.localPointCode(), properties.networkIndicator(),
+                        properties.routingContextOrNull()),
+                peerHealth);
     }
 }

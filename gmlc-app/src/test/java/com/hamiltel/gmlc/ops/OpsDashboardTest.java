@@ -44,7 +44,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "gmlc.ops.environment=LAB",
         "gmlc.ops.bootstrap-username=root",
         "gmlc.ops.bootstrap-password=" + OpsDashboardTest.ADMIN_PASSWORD,
-        "gmlc.ops.bootstrap-totp-secret=" + OpsDashboardTest.ADMIN_TOTP
+        "gmlc.ops.bootstrap-totp-secret=" + OpsDashboardTest.ADMIN_TOTP,
+        "gmlc.ops.alerts.enabled=true",
+        "gmlc.ops.alerts.eval-seconds=3600"
 })
 class OpsDashboardTest {
 
@@ -141,7 +143,10 @@ class OpsDashboardTest {
         assertEquals("LAB", summary.get("environment").asText());
         assertEquals("LAB_SIM", summary.get("dataSource").asText());
         assertFalse(summary.get("deferred").get("available").asBoolean());
-        assertFalse(summary.get("alerts").get("available").asBoolean());
+        assertTrue(summary.get("alerts").get("available").asBoolean());
+        long openAlerts = count("SELECT count(*) FROM ops_alert"
+                + " WHERE tenant_id = 1 AND closed_at IS NULL");
+        assertEquals(openAlerts, summary.get("alerts").get("open").asLong());
         assertFalse(summary.get("licence").get("available").asBoolean());
         assertFalse(summary.get("deferred").get("reason").asText().isBlank());
         assertTrue(summary.path("sloP95Ms").isMissingNode() || summary.path("sloP95Ms").isNull(),
