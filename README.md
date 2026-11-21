@@ -39,7 +39,8 @@ The split is recorded with its reasoning in the core repository under
 | Console Reports: client, purpose, RAT, method and cell aggregates with CSV export | **Built and tested** (phase C3) |
 | Geofences: TS 23.032 shapes, consent-checked arms, ENTER/LEAVE/INSIDE from stored results | **Built and tested** (phase C4a) |
 | Event webhooks: HMAC-signed deliveries, per-subscription filters, retries with backoff | **Built and tested** (phase C4b) |
-| Console Geofencing screen, Tracking, Administration | Not yet (phases C4c-C6) |
+| Console Geofencing screen: shapes, arms, event tabs, webhooks, honesty panel | **Built and tested** (phase C4c) |
+| Console Tracking and Administration | Not yet (phases C5-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -288,14 +289,13 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C3 (below); there is no OIDC, no
-geofencing, no tracking and no scheduled reports. Those arrive with their own
-phases and are not claimed here. Peer `DOWN` requires observed exchange
-failures - a gateway that has never sent to a peer reports `IDLE`, never a
-health claim.
+Honest limits: the console UI is phase C4 (below); there is no OIDC, no
+tracking and no scheduled reports. Those arrive with their own phases and are
+not claimed here. Peer `DOWN` requires observed exchange failures - a gateway
+that has never sent to a peer reports `IDLE`, never a health claim.
 
 **Console UI (phase C1d shell, phase C2 Location Request, phase C3 Monitoring
-and Reports).** `/console/` serves
+and Reports, phase C4 Geofencing).** `/console/` serves
 the operator console: a React
 19 + TypeScript bundle built by Vite into
 `gmlc-app/src/main/resources/static/console`. The shell has the sidebar
@@ -445,6 +445,27 @@ endpoint says so per feature. The flusher is a single scheduled loop, so a
 multi-instance deployment would need a lease or queue to avoid duplicate sends
 (the receiver's delivery-id check already makes that safe, merely wasteful).
 
+**Console Geofencing (phase C4c).** The screen keeps four tabs - Geofences,
+Entering, Leaving and Inside - plus a Webhooks tab. The Geofences tab lists each
+definition with its shape summary (centre and radius, vertex count, axes and
+orientation, or inner/outer radius and bearing) and the current armed and
+inside counts, with enable/disable for holders of `MANAGE_GEOFENCES`. The
+create form switches between all four TS 23.032 shapes and sends exactly the
+parameters the operator entered; the arm form offers only the chosen client's
+purposes and accepts an MSISDN or IMSI, and the armed table shows the masked
+label only. The three event tabs read `GET /v1/ops/geofences/events` and show
+each row with the producing result, method, uncertainty and coordinates.
+
+The Webhooks tab lists subscriptions with their event filter, scope and
+delivery counters, and expands a delivery log per subscription (status,
+attempts, status code, short error, next attempt). Creating a subscription
+shows the signing secret once in a panel above the table, with the same notice
+the API returns; the table never reads it back. The "What this deployment can
+report" panel renders
+`GET /v1/ops/geofences/summary`'s `reporting` map, so network area events,
+deferred/periodic location, motion events and UE availability each say
+`NOT AVAILABLE` with the gateway's reason instead of showing a zero.
+
 The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are
 hand-built SVG (presentation attributes, not style attributes) and each one
@@ -475,6 +496,9 @@ Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [Monitoring and Tracing](docs/location/console-monitoring.png),
 [one exchange record](docs/location/console-monitoring-exchange.png),
 [Reports](docs/location/console-reports.png),
+[Geofencing with all four shapes, arms and the honesty panel](docs/location/console-geofencing.png),
+[the entering-event feed](docs/location/console-geofencing-entering.png),
+[webhook subscriptions with their delivery log](docs/location/console-geofencing-webhooks.png),
 [a screen that is not built yet](docs/location/console-not-built.png).
 
 ## The Le request path

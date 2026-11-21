@@ -165,6 +165,20 @@ class GeofenceGeometryTest {
         Map<String, Object> circle = shapes.get(0).toJson();
         assertEquals("CIRCLE", circle.get("shape"));
         assertEquals(750.0, (Double) circle.get("radiusM"), 0.0001);
+
+        Map<String, Object> arc = shapes.get(3).toJson();
+        assertEquals(30.0, (Double) arc.get("startAngleDeg"), 0.0001);
+    }
+
+    @Test
+    void anArcIsParsedFromTheFieldNameTheConsoleSends() throws Exception {
+        GeofenceGeometry arc = GeofenceGeometry.parse(MAPPER.readTree(
+                "{\"shape\":\"ARC\",\"latitude\":0.3476,\"longitude\":32.5825,"
+                        + "\"outerRadiusM\":2000,\"innerRadiusM\":500,"
+                        + "\"startAngleDeg\":0,\"includedAngleDeg\":90}"));
+        assertEquals("ARC", arc.shapeName());
+        assertEquals(2000.0, arc.radiusM(), 0.0001);
+        assertEquals(500.0, arc.innerRadiusM(), 0.0001);
     }
 
     @Test

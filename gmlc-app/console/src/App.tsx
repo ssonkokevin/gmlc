@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
 import { Dashboard } from './pages/Dashboard';
+import { Geofencing } from './pages/Geofencing';
 import { Locate } from './pages/Locate';
 import { Monitoring } from './pages/Monitoring';
 import { Reports } from './pages/Reports';
@@ -70,7 +71,7 @@ function routeFromHash(): RouteKey {
   return (ROUTE_KEYS as string[]).includes(hash) ? (hash as RouteKey) : 'dashboard';
 }
 
-type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports'>;
+type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports' | 'geofencing'>;
 
 const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
   tracking: {
@@ -79,14 +80,6 @@ const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
       'Follow one consenting subscriber for a bounded period, under a purpose the subscriber agreed to.',
       'Push notifications to client endpoints when a tracked target moves.',
       'Every point still carries its method, uncertainty and age.',
-    ],
-  },
-  geofencing: {
-    phase: 'phase C4',
-    lines: [
-      'Draw a coverage area on a local map and attach it to a consenting subscriber.',
-      'Entry and exit events computed from real location results, with the accuracy that produced them.',
-      'Deferred location requests, with deadlines and past-deadline counters.',
     ],
   },
   configuration: {
@@ -317,8 +310,8 @@ export function App() {
                   Peer state comes from exchanges the gateway attempted. Silence is IDLE, never
                   evidence that a peer is healthy.
                 </p>
-                <p className="note">Console build: phase C3. Dashboard, Location Request,
-                  Monitoring and Reports are live; Geofencing, Tracking and Administration
+                <p className="note">Console build: phase C4. Dashboard, Location Request,
+                  Monitoring, Reports and Geofencing are live; Tracking and Administration
                   screens arrive in later phases.</p>
               </div>
             </details>
@@ -367,6 +360,8 @@ export function App() {
             <Locate session={session} onExpired={expired} />
           ) : route === 'reports' ? (
             <Reports session={session} onExpired={expired} />
+          ) : route === 'geofencing' ? (
+            <Geofencing session={session} onExpired={expired} />
           ) : (
             <ComingSoon route={route} />
           )}

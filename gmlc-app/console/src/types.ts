@@ -458,3 +458,126 @@ export interface DashboardData {
   requests: RequestPage;
   deferred: Deferred;
 }
+
+export type GeoShape = 'CIRCLE' | 'POLYGON' | 'ELLIPSE' | 'ARC';
+
+export interface GeofenceGeometry {
+  shape: GeoShape;
+  latitude?: number;
+  longitude?: number;
+  radiusM?: number;
+  points?: Array<{ latitude: number; longitude: number }>;
+  semiMajorM?: number;
+  semiMinorM?: number;
+  orientationDeg?: number;
+  outerRadiusM?: number;
+  innerRadiusM?: number;
+  startAngleDeg?: number;
+  includedAngleDeg?: number;
+}
+
+export interface GeofenceView {
+  geofenceId: string;
+  name: string;
+  description?: string;
+  group?: string;
+  shape: GeoShape;
+  geometry: GeofenceGeometry;
+  reportInside: boolean;
+  enabled: boolean;
+  armed: number;
+  inside: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeofenceCounts {
+  total: number;
+  enabled: number;
+  armed: number;
+  inside: number;
+  events: number;
+  entering: number;
+  leaving: number;
+  insideEvents: number;
+}
+
+export interface GeofenceSummary {
+  range: string;
+  from: string;
+  to: string;
+  counts: GeofenceCounts;
+  reporting: Record<string, Feature>;
+}
+
+export interface GeofenceEvent {
+  eventId: number;
+  geofenceId: string;
+  geofenceName: string;
+  subjectLabel: string;
+  eventType: 'ENTER' | 'LEAVE' | 'INSIDE';
+  occurredAt: string;
+  resultId: string;
+  requestId: string;
+  latitude: number;
+  longitude: number;
+  uncertaintyM: number;
+  method: string;
+}
+
+export interface GeofenceEventPage {
+  range: string;
+  from: string;
+  to: string;
+  type?: string;
+  geofenceId?: string;
+  limit: number;
+  offset: number;
+  total: number;
+  items: GeofenceEvent[];
+}
+
+export interface ArmView {
+  geofenceId: string;
+  geofenceName: string;
+  subjectRef: string;
+  subjectLabel: string;
+  state?: 'INSIDE' | 'OUTSIDE';
+  armedAt: string;
+  lastEvaluatedAt?: string;
+  lastResultId?: string;
+}
+
+export interface SubscriptionView {
+  subscriptionId: string;
+  name: string;
+  url: string;
+  eventTypes: string[];
+  geofenceId?: string;
+  geofenceName?: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  pending: number;
+  delivered: number;
+  failed: number;
+  lastDeliveredAt?: string;
+}
+
+export interface DeliveryView {
+  deliveryId: number;
+  eventId: number;
+  status: 'PENDING' | 'DELIVERED' | 'FAILED';
+  attempts: number;
+  lastStatusCode?: number;
+  lastError?: string;
+  createdAt: string;
+  nextAttemptAt: string;
+  deliveredAt?: string;
+}
+
+export interface CreatedSubscription {
+  subscription: SubscriptionView;
+  secret: string;
+  secretNotice: string;
+}

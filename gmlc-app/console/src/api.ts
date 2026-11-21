@@ -1,10 +1,17 @@
 import type {
   AlertPage,
+  ArmView,
   ClientView,
+  CreatedSubscription,
   DashboardData,
   Deferred,
+  DeliveryView,
   ExchangePage,
   ExchangeSeries,
+  GeofenceEventPage,
+  GeofenceGeometry,
+  GeofenceSummary,
+  GeofenceView,
   Mix,
   PeerPage,
   RangeKey,
@@ -13,6 +20,7 @@ import type {
   RequestPage,
   Session,
   Submission,
+  SubscriptionView,
   Summary,
   Throughput,
 } from './types';
@@ -194,6 +202,94 @@ export const api = {
 
   reportExportUrl(range: RangeKey, report: 'clients' | 'purposes' | 'rat' | 'method' | 'cell'): string {
     return `/v1/ops/reports/export.csv?range=${range}&report=${report}`;
+  },
+
+  geofences(): Promise<GeofenceView[]> {
+    return call<GeofenceView[]>('/v1/ops/geofences');
+  },
+
+  geofenceSummary(range: RangeKey): Promise<GeofenceSummary> {
+    return call<GeofenceSummary>(`/v1/ops/geofences/summary?range=${range}`);
+  },
+
+  geofenceEvents(range: RangeKey, type?: string, limit = 50): Promise<GeofenceEventPage> {
+    const query = new URLSearchParams({ range, limit: String(limit) });
+    if (type) {
+      query.set('type', type);
+    }
+    return call<GeofenceEventPage>(`/v1/ops/geofences/events?${query}`);
+  },
+
+  arms(state: 'INSIDE' | 'OUTSIDE', limit = 100): Promise<ArmView[]> {
+    return call<ArmView[]>(`/v1/ops/geofences/arms?state=${state}&limit=${limit}`);
+  },
+
+  createGeofence(input: {
+    name: string;
+    description?: string;
+    group?: string;
+    reportInside: boolean;
+    geometry: GeofenceGeometry;
+  }): Promise<GeofenceView> {
+    return call<GeofenceView>('/v1/ops/geofences', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchGeofence(geofenceId: string, patch: { enabled?: boolean; reportInside?: boolean }): Promise<GeofenceView> {
+    return call<GeofenceView>(`/v1/ops/geofences/${geofenceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  armGeofence(geofenceId: string, input: {
+    clientId: string;
+    msisdn?: string;
+    imsi?: string;
+    purpose: string;
+  }): Promise<{ created: boolean; arm: ArmView }> {
+    return call<{ created: boolean; arm: ArmView }>(`/v1/ops/geofences/${geofenceId}/arm`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  disarmGeofence(geofenceId: string, subjectRef: string): Promise<void> {
+    return call<void>(`/v1/ops/geofences/${geofenceId}/arms/${subjectRef}`, { method: 'DELETE' });
+  },
+
+  subscriptions(): Promise<SubscriptionView[]> {
+    return call<SubscriptionView[]>('/v1/ops/subscriptions');
+  },
+
+  createSubscription(input: {
+    name: string;
+    url: string;
+    eventTypes: string[];
+    geofenceId?: string;
+    enabled: boolean;
+  }): Promise<CreatedSubscription> {
+    return call<CreatedSubscription>('/v1/ops/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchSubscription(subscriptionId: string, patch: { enabled: boolean }): Promise<SubscriptionView> {
+    return call<SubscriptionView>(`/v1/ops/subscriptions/${subscriptionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteSubscription(subscriptionId: string): Promise<void> {
+    return call<void>(`/v1/ops/subscriptions/${subscriptionId}`, { method: 'DELETE' });
+  },
+
+  deliveries(subscriptionId: string, limit = 20): Promise<DeliveryView[]> {
+    return call<DeliveryView[]>(`/v1/ops/subscriptions/${subscriptionId}/deliveries?limit=${limit}`);
   },
 };
 
