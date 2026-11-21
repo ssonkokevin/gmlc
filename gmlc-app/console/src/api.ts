@@ -3,9 +3,12 @@ import type {
   ClientView,
   DashboardData,
   Deferred,
+  ExchangePage,
+  ExchangeSeries,
   Mix,
   PeerPage,
   RangeKey,
+  Reports,
   RequestDetail,
   RequestPage,
   Session,
@@ -146,6 +149,51 @@ export const api = {
   requestDetail(requestId: string, reveal = false): Promise<RequestDetail> {
     const suffix = reveal ? '?reveal=true' : '';
     return call<RequestDetail>(`/v1/ops/requests/${requestId}${suffix}`);
+  },
+
+  exchanges(range: RangeKey, options: {
+    protocol?: string;
+    recordStatus?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<ExchangePage> {
+    const query = new URLSearchParams({ range });
+    if (options.protocol) {
+      query.set('protocol', options.protocol);
+    }
+    if (options.recordStatus) {
+      query.set('recordStatus', options.recordStatus);
+    }
+    query.set('limit', String(options.limit ?? 25));
+    query.set('offset', String(options.offset ?? 0));
+    return call<ExchangePage>(`/v1/ops/exchanges?${query}`);
+  },
+
+  exchangeSeries(range: RangeKey, protocol?: string): Promise<ExchangeSeries> {
+    const query = new URLSearchParams({ range });
+    if (protocol) {
+      query.set('protocol', protocol);
+    }
+    return call<ExchangeSeries>(`/v1/ops/exchanges/series?${query}`);
+  },
+
+  reports(range: RangeKey): Promise<Reports> {
+    return call<Reports>(`/v1/ops/reports?range=${range}`);
+  },
+
+  exchangeExportUrl(range: RangeKey, options: { protocol?: string; recordStatus?: string } = {}): string {
+    const query = new URLSearchParams({ range });
+    if (options.protocol) {
+      query.set('protocol', options.protocol);
+    }
+    if (options.recordStatus) {
+      query.set('recordStatus', options.recordStatus);
+    }
+    return `/v1/ops/exchanges/export.csv?${query}`;
+  },
+
+  reportExportUrl(range: RangeKey, report: 'clients' | 'purposes' | 'rat' | 'method' | 'cell'): string {
+    return `/v1/ops/reports/export.csv?range=${range}&report=${report}`;
   },
 };
 

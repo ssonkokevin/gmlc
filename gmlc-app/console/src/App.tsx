@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
 import { Dashboard } from './pages/Dashboard';
 import { Locate } from './pages/Locate';
+import { Monitoring } from './pages/Monitoring';
+import { Reports } from './pages/Reports';
 import { SignIn } from './pages/SignIn';
 import type { RangeKey, Session } from './types';
 
@@ -68,17 +70,9 @@ function routeFromHash(): RouteKey {
   return (ROUTE_KEYS as string[]).includes(hash) ? (hash as RouteKey) : 'dashboard';
 }
 
-type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'locate'>;
+type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports'>;
 
 const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
-  monitoring: {
-    phase: 'phase C3',
-    lines: [
-      'A per-request signalling timeline: what went to the peer, what came back, and when.',
-      'Live CDR inspection with export for the roles that hold it.',
-      'Peer exchange history over time, not just the last outcome.',
-    ],
-  },
   tracking: {
     phase: 'phase C5',
     lines: [
@@ -93,14 +87,6 @@ const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
       'Draw a coverage area on a local map and attach it to a consenting subscriber.',
       'Entry and exit events computed from real location results, with the accuracy that produced them.',
       'Deferred location requests, with deadlines and past-deadline counters.',
-    ],
-  },
-  reports: {
-    phase: 'phase C3',
-    lines: [
-      'Scheduled and on-demand reports over the stored rows: volumes, outcomes, response times.',
-      'Rat, cell and client breakdowns that match the operations dashboard exactly.',
-      'No report may contain a figure the gateway did not record.',
     ],
   },
   configuration: {
@@ -331,8 +317,9 @@ export function App() {
                   Peer state comes from exchanges the gateway attempted. Silence is IDLE, never
                   evidence that a peer is healthy.
                 </p>
-                <p className="note">Console build: phase C2. Location Request is live; Monitoring,
-                  Geofencing, Tracking, Reports and Administration screens arrive in later phases.</p>
+                <p className="note">Console build: phase C3. Dashboard, Location Request,
+                  Monitoring and Reports are live; Geofencing, Tracking and Administration
+                  screens arrive in later phases.</p>
               </div>
             </details>
 
@@ -374,8 +361,12 @@ export function App() {
               onOpenAlerts={setOpenAlerts}
               onExpired={expired}
             />
+          ) : route === 'monitoring' ? (
+            <Monitoring session={session} onExpired={expired} />
           ) : route === 'locate' ? (
             <Locate session={session} onExpired={expired} />
+          ) : route === 'reports' ? (
+            <Reports session={session} onExpired={expired} />
           ) : (
             <ComingSoon route={route} />
           )}

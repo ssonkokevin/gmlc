@@ -311,6 +311,142 @@ export interface RequestDetail {
   timeline: TimelineEvent[];
 }
 
+export interface ExchangeItem {
+  cdrId: number;
+  createdAt: string;
+  requestId: string;
+  clientId: string;
+  clientName?: string;
+  protocol?: string;
+  operation?: string;
+  recordStatus: string;
+  resultCode?: string;
+  rat?: string;
+  method?: string;
+  methodsAttempted: string[];
+  responseTimeMs?: number;
+  pagingPerformed?: boolean;
+  servingNode?: string;
+  positioningNode?: string;
+  uncertaintyM?: number;
+  confidence?: number;
+  ageSeconds?: number;
+  accuracyRequestedM?: number;
+  accuracyAchievedM?: number;
+  accuracyFulfilled?: boolean;
+  shape?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface ExchangePage {
+  range: string;
+  from: string;
+  to: string;
+  limit: number;
+  offset: number;
+  total: number;
+  dataSource: string;
+  rawPayload: Feature;
+  items: ExchangeItem[];
+}
+
+export interface ExchangeBucket {
+  bucket: string;
+  answered: number;
+  failed: number;
+  averageResponseMs?: number;
+  p95ResponseMs?: number;
+}
+
+export interface ExchangeTotals {
+  finished: number;
+  answered: number;
+  failed: number;
+  averageResponseMs?: number;
+  p50ResponseMs?: number;
+  p95ResponseMs?: number;
+}
+
+export interface ExchangeSeries {
+  range: string;
+  from: string;
+  to: string;
+  bucketSeconds: number;
+  protocol?: string;
+  dataSource: string;
+  points: ExchangeBucket[];
+  totals: ExchangeTotals;
+  byProtocol: NameCount[];
+}
+
+export interface ClientReport {
+  name: string;
+  requests: number;
+  finished: number;
+  answered: number;
+  failed: number;
+  inFlight: number;
+  successRate?: number;
+  averageResponseMs?: number;
+  p95ResponseMs?: number;
+}
+
+export interface RatReport {
+  name: string;
+  answered: number;
+  failed: number;
+  total: number;
+  averageResponseMs?: number;
+  p95ResponseMs?: number;
+}
+
+export interface MethodReport {
+  name: string;
+  count: number;
+  answered: number;
+  averageResponseMs?: number;
+  averageUncertaintyM?: number;
+  averageAgeSeconds?: number;
+}
+
+export interface CellReport {
+  name: string;
+  results: number;
+  averageUncertaintyM?: number;
+  p95UncertaintyM?: number;
+  averageAgeSeconds?: number;
+  accuracyFulfilledRate?: number;
+}
+
+export interface ReportTotals {
+  requests: number;
+  finished: number;
+  answered: number;
+  failed: number;
+  inFlight: number;
+  averageResponseMs?: number;
+  p50ResponseMs?: number;
+  p95ResponseMs?: number;
+  successRate?: number;
+  accuracyFulfilledRate?: number;
+}
+
+export interface Reports {
+  range: string;
+  from: string;
+  to: string;
+  environment: string;
+  dataSource: string;
+  totals: ReportTotals;
+  byClient: ClientReport[];
+  byPurpose: ClientReport[];
+  byRat: RatReport[];
+  byMethod: MethodReport[];
+  byCell: CellReport[];
+  notes: string[];
+}
+
 export type RangeKey = '1h' | '24h' | '7d' | '30d';
 
 export interface DashboardData {

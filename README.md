@@ -35,7 +35,9 @@ The split is recorded with its reasoning in the core repository under
 | Peer health from observed exchanges, alert engine, acknowledgement | **Built and tested** (phase C1c) |
 | Operator console UI (React): shell, sign-in, Operations Dashboard | **Built and tested** (phase C1d) |
 | Console Location Request: client picker, governed submission, state, result envelope, timeline | **Built and tested** (phase C2) |
-| Console Monitoring & Tracing, Geofencing, Tracking, Reports, Administration | Not yet (phases C3-C6) |
+| Console Monitoring & Tracing: stored exchanges, filters, rate chart, peer state, CSV export | **Built and tested** (phase C3) |
+| Console Reports: client, purpose, RAT, method and cell aggregates with CSV export | **Built and tested** (phase C3) |
+| Console Geofencing, Tracking, Administration | Not yet (phases C4-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -84,6 +86,14 @@ GET  /v1/ops/requests/{id}?reveal=false    one request, result, CDR, timeline (s
                                            reveal also needs REVEAL_IDENTIFIERS)
 GET  /v1/ops/clients                       enabled clients of this tenant     (session, LOCATE)
 POST /v1/ops/locations                     governed request from the console  (session, LOCATE + CSRF)
+
+GET  /v1/ops/exchanges?range=&protocol=&recordStatus=&requestId=&limit=&offset=
+                                           paged stored exchanges, masked      (session, VIEW_REQUESTS)
+GET  /v1/ops/exchanges/series?range=&protocol=  answered/failed per bucket     (session, VIEW_REQUESTS)
+GET  /v1/ops/exchanges/export.csv?...      the same list as CSV                (session, EXPORT_CDR)
+GET  /v1/ops/reports?range=                client, purpose, RAT, method, cell  (session, VIEW_DASHBOARD)
+GET  /v1/ops/reports/export.csv?range=&report=clients|purposes|rat|method|cell
+                                           one report section as CSV           (session, EXPORT_CDR)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -257,13 +267,14 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C2 (below); there is no OIDC, no
+Honest limits: the console UI is phase C3 (below); there is no OIDC, no
 geofencing, no tracking and no scheduled reports. Those arrive with their own
 phases and are not claimed here. Peer `DOWN` requires observed exchange
 failures - a gateway that has never sent to a peer reports `IDLE`, never a
 health claim.
 
-**Console UI (phase C1d shell, phase C2 Location Request).** `/console/` serves
+**Console UI (phase C1d shell, phase C2 Location Request, phase C3 Monitoring
+and Reports).** `/console/` serves
 the operator console: a React
 19 + TypeScript bundle built by Vite into
 `gmlc-app/src/main/resources/static/console`. The shell has the sidebar
@@ -303,6 +314,47 @@ permission, CSRF, permission refusal, unknown clients, consent refusal with a
 `DENIED` audit row, a permitted submission with its `ALLOWED` row, masked
 detail and timeline, idempotent replay, and accuracy refusal.
 
+**Console Monitoring & Tracing (phase C3).** The screen reads
+`GET /v1/ops/exchanges`, which lists stored CDRs - one row per signalling
+attempt - joined to the client name, with protocol, operation, record status,
+result code, RAT, positioning method, methods attempted, response time, paging,
+serving and positioning nodes, uncertainty, confidence, age, accuracy requested
+and met, shape, coordinates and timestamp. Filters cover protocol
+(`MAP`/`DIAMETER`), outcome (`ANSWERED`/`FAILED`/`TIMEOUT`/`ABORTED`) and an
+exact request id; the table is paged 25 rows at a time. `GET
+/v1/ops/exchanges/series` returns answered and failed counts per bucket with
+the average and p95 response time, optionally restricted to one protocol, and
+the page draws it as a stacked SVG chart with a `<details>` table.
+
+The read model is the stored CDR, so the screen says exactly that. Raw
+signalling payloads are **not captured** anywhere; the API answers
+`rawPayload: {available: false, reason: ...}` and the page prints the reason
+rather than pretending to decode frames. The peer panel reuses
+`GET /v1/ops/peers` (observed state only), and the faces-in-window panel shows
+which interfaces actually produced exchanges.
+
+**Console Reports (phase C3).** `GET /v1/ops/reports` aggregates the chosen
+window five ways: by client (requests, answered, failed, in flight, success
+rate, average response), by purpose (grouped at request creation), by RAT and
+by positioning method (grouped at the CDR write, with average uncertainty and
+age for answered results only), and by serving cell (from stored results, with
+an `UNATTRIBUTED` row when a result has no cell). The screen states each
+grouping basis and calls the cell table "the cells that served stored results,
+not a coverage prediction". Success rate is answered divided by finished; in
+flight is requests minus finished, so the three figures reconcile instead of
+overlapping.
+
+**Exports and their permissions.** `GET /v1/ops/exchanges/export.csv` and
+`GET /v1/ops/reports/export.csv?report=...` require `EXPORT_CDR`, independent of
+the read permission. Both write an `ALLOWED` audit row (`OPS_CDR_EXPORTED` with
+the filters and row count, `OPS_REPORT_EXPORTED` with the range and report) and
+a refusal writes `OPS_FORBIDDEN`/`DENIED` through the permission interceptor.
+The CSV uses quoted fields, ISO-8601 instants, no subscriber identifiers
+(`request_id` is the join key; MSISDN and IMSI never appear), and neutralises
+spreadsheet formula injection by prefixing a leading `= + - @` with an
+apostrophe. A cap of 50,000 rows is signalled with `X-Export-Truncated` and a
+header line instead of silently dropping data.
+
 The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are
 hand-built SVG (presentation attributes, not style attributes) and each one
@@ -330,6 +382,9 @@ Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [dashboard](docs/location/console-dashboard.png),
 [Location Request](docs/location/console-locate.png),
 [a refused request followed to its final state](docs/location/console-locate-result.png),
+[Monitoring and Tracing](docs/location/console-monitoring.png),
+[one exchange record](docs/location/console-monitoring-exchange.png),
+[Reports](docs/location/console-reports.png),
 [a screen that is not built yet](docs/location/console-not-built.png).
 
 ## The Le request path
