@@ -22,10 +22,11 @@ The split is recorded with its reasoning in the core repository under
 | Client registration, API keys, address allowlists | **Built and tested** |
 | Per-second and per-day quotas, audited refusals | **Built and tested** |
 | Consent: grant, read, revoke, expiry, emergency override | **Built and tested** |
-| Le location API, request state machine, CDRs | **Built and tested**; fails closed with `NO_LCS_SOURCE` until a location client exists |
+| Le location API, request state machine, CDRs | **Built and tested**; fails closed until a location client is wired in |
 | Authoritative cell database, coverage geometry, CSV import with dry-run | **Built and tested** |
+| Diameter SLh RIR and SLg PLR/PLA clients, CER/CEA, TCP framing | **Built and tested**; fail closed until a peer is configured |
 | MAP (ATI, PSI, SRILCS, PSL, SLR) | Not yet |
-| Diameter (SLh RIR, SLg PLR/PLA, Sh UDR) | Not yet |
+| Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
 | Dashboard | Not yet |
 | Container build | Written, **unverified** - no Docker on the build host |
 
@@ -112,11 +113,10 @@ be left, which is enforced both in the state enum and by a conditional update
 on the row. A `POST` that has already finished answers 200 with its final
 state; one still open answers 202.
 
-This build has no MAP, SLh/SLg or SLs client yet, so every routed request ends
-`FAILED` with `errorCode: NO_LCS_SOURCE` and a CDR row saying the same. That is
-deliberate: the gateway reports what it cannot do instead of synthesising a
-position. When the signalling clients land, the same state machine carries the
-request through `REQUESTED` to `ANSWERED`.
+The request path still ends `FAILED` with `errorCode: NO_LCS_SOURCE` and a CDR
+row saying the same: the Diameter clients exist (see below) but the router that
+calls them is not built yet. That is deliberate: the gateway reports what it
+cannot do instead of synthesising a position.
 
 `GET /v1/cdrs?limit=50` returns the caller's records, newest first. The
 subscriber appears only as the pseudonymous reference; the raw MSISDN/IMSI stay
@@ -126,6 +126,43 @@ Set `GMLC_SUBJECT_PEPPER` in a real deployment: with it the reference is
 HMAC-SHA256, so a database copy cannot be matched against a list of known
 numbers. Without it the reference is unkeyed SHA-256 and every start logs a
 warning.
+
+## Diameter signalling
+
+The gateway speaks Diameter itself - no vendor SS7/Diameter library - so the
+codec, the stream framing and the capabilities exchange are all in
+`diameter/`:
+
+- `Avp`, `DiameterMessage`: RFC 6733 codec. Every encode pads AVPs to four
+  octets; every parse refuses a truncated AVP or a frame shorter than its
+  declared length rather than misreading bytes.
+- `TcpDiameterTransport`: one stream peer, CER/CEA on connect (SLh and SLg
+  application IDs, vendor 10415), hop-by-hop matching, answers inbound CER, and
+  a 1 MiB frame ceiling. **TCP, not SCTP**: this host has no SCTP provider for
+  the JVM, so the transport is `Diameter/TCP`; a DRA that only accepts SCTP
+  needs that provider added before this will connect.
+- `SlhClient.routeInfo(imsi|msisdn)`: LCS-Routing-Info-Request (app 16777291)
+  to the HSS, returning the serving node's Diameter name and realm, or empty
+  when the HSS answers success without an addressable node.
+- `SlgClient.provideLocation(...)`: Provide-Location-Request (app 16777255) to
+  the MME, carrying the accuracy as the standard uncertainty code, the LCS
+  client type and the LCS QoS. The answer's ECGI becomes an LTE cell, a
+  Cell-Global-Identity becomes a GSM cell with its LAC, and anything else is
+  empty - the client never invents a cell that the answer did not contain.
+
+Codes come from TS 29.172 (SLh/SLg), 29.274 (ECGI and CGI octet layout) and
+29.002 (TBCD, MSISDN). Errors map to a small stable set the Le caller sees:
+`SUBSCRIBER_UNKNOWN`, `SUBSCRIBER_NOT_REACHABLE`, `POSITIONING_DENIED`,
+`POSITIONING_FAILED`, `GMLC_NOT_AUTHORISED`, or `DIAMETER_ERROR_<code>`.
+
+Sh (UDR towards the HSS, for the "service node" subscription data) is not
+built: TS 29.329 is not on the build host and the AVP codes must not be
+guessed. Phase 1 cell-ID does not need it.
+
+Configuration is the `gmlc.diameter` block; with `GMLC_DIAMETER_PEER_HOST`
+empty the transport refuses every exchange with `SIGNALLING_NOT_CONFIGURED`,
+so an unconfigured deployment fails fast and visibly instead of hanging on a
+socket.
 
 ## The cell database
 
@@ -222,6 +259,7 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── client/        API keys, authentication, allowlists, quotas, request filter
 ├── config/        deployment properties
 ├── consent/       consent records, expiry, emergency basis
+├── diameter/      AVP/message codec, TCP transport, SLh and SLg clients
 ├── health/        health endpoint
 ├── location/      Le requests, state machine, pseudonyms, validation
 └── web/           error mapping to RFC 7807 problems
