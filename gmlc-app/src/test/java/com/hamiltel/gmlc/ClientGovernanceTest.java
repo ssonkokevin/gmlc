@@ -145,7 +145,11 @@ class ClientGovernanceTest {
 
         ResponseEntity<JsonNode> throttled = null;
         for (int attempt = 0; attempt < 10 && throttled == null; attempt++) {
-            EmbeddedPostgresSupport.get(rest, "/v1/clients/me", key);
+            ResponseEntity<JsonNode> first = EmbeddedPostgresSupport.get(rest, "/v1/clients/me", key);
+            if (first.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                throttled = first;
+                break;
+            }
             ResponseEntity<JsonNode> next = EmbeddedPostgresSupport.get(rest, "/v1/clients/me", key);
             if (next.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
                 throttled = next;
