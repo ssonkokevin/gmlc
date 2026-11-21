@@ -38,7 +38,8 @@ The split is recorded with its reasoning in the core repository under
 | Console Monitoring & Tracing: stored exchanges, filters, rate chart, peer state, CSV export | **Built and tested** (phase C3) |
 | Console Reports: client, purpose, RAT, method and cell aggregates with CSV export | **Built and tested** (phase C3) |
 | Geofences: TS 23.032 shapes, consent-checked arms, ENTER/LEAVE/INSIDE from stored results | **Built and tested** (phase C4a) |
-| Console Geofencing screen, event webhooks, Tracking, Administration | Not yet (phases C4-C6) |
+| Event webhooks: HMAC-signed deliveries, per-subscription filters, retries with backoff | **Built and tested** (phase C4b) |
+| Console Geofencing screen, Tracking, Administration | Not yet (phases C4c-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -107,6 +108,13 @@ POST /v1/ops/geofences                     create (circle/polygon/ellipse/arc)  
 PATCH /v1/ops/geofences/{id}               rename, regroup, reportInside, enable (session, MANAGE_GEOFENCES + CSRF)
 POST /v1/ops/geofences/{id}/arm            arm a consented subject              (session, MANAGE_GEOFENCES + CSRF)
 DELETE /v1/ops/geofences/{id}/arms/{subjectRef}  disarm                         (session, MANAGE_GEOFENCES + CSRF)
+
+GET  /v1/ops/subscriptions                 webhook subscriptions, no secret      (session, VIEW_DASHBOARD)
+GET  /v1/ops/subscriptions/{id}            one subscription                     (session, VIEW_DASHBOARD)
+GET  /v1/ops/subscriptions/{id}/deliveries recent delivery attempts             (session, VIEW_REQUESTS)
+POST /v1/ops/subscriptions                 create; returns the signing secret once (session, MANAGE_GEOFENCES + CSRF)
+PATCH /v1/ops/subscriptions/{id}           rename, re-target, filter, disable    (session, MANAGE_GEOFENCES + CSRF)
+DELETE /v1/ops/subscriptions/{id}          remove subscription and its log       (session, MANAGE_GEOFENCES + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -396,10 +404,46 @@ MSISDN. A disabled fence keeps its arms and history but is not evaluated.
 
 Honest limits: there is no network-initiated deferred, periodic, motion or
 UE-availability reporting (`GET /v1/ops/geofences/summary` returns those as
-`available: false` with a reason), and no outbound webhook subscription is
-built. Events exist only for results the gateway already obtained through a
-governed request. Re-evaluating the same result cannot duplicate an event: the
-event table's unique key includes the result id and event type.
+`available: false` with a reason). Events exist only for results the gateway
+already obtained through a governed request. Re-evaluating the same result
+cannot duplicate an event: the event table's unique key includes the result id
+and event type.
+
+**Event webhooks (phase C4b).** A subscription selects event types
+(`ENTER`, `LEAVE`, `INSIDE`) and optionally one geofence; a null `geofenceId`
+covers every fence in the tenant. Creating one needs `MANAGE_GEOFENCES` and
+answers with a 64-character signing secret that is shown exactly once. A read
+never returns it, and it is never written to a log line or an audit row. The
+audit record keeps the subscription id and the URL host.
+
+Each stored event creates one `PENDING` delivery per matching enabled
+subscription, inside the same transaction as the event. The flusher sends:
+
+- `POST` to the subscription URL with `Content-Type: application/json`;
+- `X-GMLC-Event`, `X-GMLC-Delivery` and `X-GMLC-Timestamp` headers;
+- `X-GMLC-Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + body)>`.
+
+The body carries the event id and type, `occurredAt`, request and result ids,
+the geofence id and name, the pseudonymous subject `ref` with its masked
+`label`, and the position with method, uncertainty and coordinates. The MSISDN
+and IMSI never appear. A receiver should check the timestamp against its own
+clock (the signature covers it) and treat `X-GMLC-Delivery` as the idempotency
+key: delivery is at-least-once, because a timeout after the remote side
+committed is indistinguishable from a lost request.
+
+A 2xx marks the delivery `DELIVERED`. Anything else is retried after 30 s,
+2 minutes, 10 minutes and 1 hour, then marked `FAILED` after five attempts
+(`gmlc.webhooks.max-attempts`). The delivery log keeps the status code and a
+short error, not a response body. A webhook failure never removes the event,
+never changes the arm state and never affects the location answer that produced
+it.
+
+Honest limits: this sends only events derived from results the gateway already
+stored. There is still no network area-event subscription, no deferred or
+periodic location, and no motion or UE-availability reporting; the summary
+endpoint says so per feature. The flusher is a single scheduled loop, so a
+multi-instance deployment would need a lease or queue to avoid duplicate sends
+(the receiver's delivery-id check already makes that safe, merely wasteful).
 
 The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are

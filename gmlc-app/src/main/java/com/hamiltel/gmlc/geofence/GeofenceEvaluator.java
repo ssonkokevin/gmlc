@@ -1,6 +1,7 @@
 package com.hamiltel.gmlc.geofence;
 
 import com.hamiltel.gmlc.location.LocationEstimate;
+import com.hamiltel.gmlc.webhook.WebhookService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,11 @@ public class GeofenceEvaluator {
     private static final Logger log = LoggerFactory.getLogger(GeofenceEvaluator.class);
 
     private final GeofenceRepository geofences;
+    private final WebhookService webhooks;
 
-    public GeofenceEvaluator(GeofenceRepository geofences) {
+    public GeofenceEvaluator(GeofenceRepository geofences, WebhookService webhooks) {
         this.geofences = geofences;
+        this.webhooks = webhooks;
     }
 
     @Transactional
@@ -41,10 +44,13 @@ public class GeofenceEvaluator {
             try {
                 GeofenceGeometry geometry = GeofenceGeometry.parse(armed.geometry());
                 boolean inside = geometry.contains(latitude, longitude);
-                geofences.recordEvaluation(tenantId, armed.geofenceId(), subjectRef,
-                        armed.subjectLabel(), armed.state(), inside, armed.reportInside(),
-                        resultId, requestId, estimate.producedAt(), latitude, longitude,
-                        estimate.uncertaintyM(), estimate.method());
+                Long eventId = geofences.recordEvaluation(tenantId, armed.geofenceId(),
+                        subjectRef, armed.subjectLabel(), armed.state(), inside,
+                        armed.reportInside(), resultId, requestId, estimate.producedAt(),
+                        latitude, longitude, estimate.uncertaintyM(), estimate.method());
+                if (eventId != null) {
+                    webhooks.enqueue(tenantId, eventId);
+                }
             } catch (RuntimeException e) {
                 log.warn("geofence {} could not be evaluated for request {}: {}",
                         armed.geofenceId(), requestId, e.getClass().getSimpleName());

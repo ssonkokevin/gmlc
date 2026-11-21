@@ -170,7 +170,7 @@ public class GeofenceRepository {
      * key on (geofence, subject, result, type) makes a repeated evaluation of
      * the same result harmless.
      */
-    public void recordEvaluation(long tenantId, UUID geofenceId, String subjectRef,
+    public Long recordEvaluation(long tenantId, UUID geofenceId, String subjectRef,
                                  String subjectLabel, String previousState, boolean inside,
                                  boolean reportInside, UUID resultId, UUID requestId,
                                  Instant occurredAt, double latitude, double longitude,
@@ -185,18 +185,20 @@ public class GeofenceRepository {
 
         String eventType = eventType(previousState, inside, reportInside);
         if (eventType == null) {
-            return;
+            return null;
         }
-        jdbc.update("""
+        List<Long> ids = jdbc.query("""
                 INSERT INTO geofence_event (tenant_id, geofence_id, subject_ref, subject_label,
                     event_type, occurred_at, result_id, request_id, latitude, longitude,
                     uncertainty_m, method)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (geofence_id, subject_ref, result_id, event_type) DO NOTHING
-                """,
+                RETURNING event_id
+                """, (rs, rowNum) -> rs.getLong("event_id"),
                 tenantId, geofenceId, subjectRef, subjectLabel, eventType,
                 Timestamp.from(occurredAt), resultId, requestId, latitude, longitude,
                 uncertaintyM, method);
+        return ids.isEmpty() ? null : ids.get(0);
     }
 
     static String eventType(String previousState, boolean inside, boolean reportInside) {

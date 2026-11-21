@@ -199,8 +199,9 @@ public class OpsGeofenceController {
                 "no motion event reporting is built in this deployment"));
         features.put("ueAvailable", new Feature(false,
                 "no UE-availability notification path is built in this deployment"));
-        features.put("eventWebhooks", new Feature(false,
-                "no outbound webhook subscription is built in this deployment"));
+        features.put("eventWebhooks", new Feature(true,
+                "signed webhook deliveries are built for events produced from stored results;"
+                        + " see /v1/ops/subscriptions"));
         return features;
     }
 

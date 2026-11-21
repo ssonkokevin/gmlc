@@ -112,6 +112,17 @@ gmlc:
       error-rate-threshold: ${GMLC_OPS_ALERTS_ERROR_RATE:0.25}
       peer-failure-threshold: ${GMLC_OPS_ALERTS_PEER_FAILURES:3}
       cell-gap-threshold: ${GMLC_OPS_ALERTS_CELL_GAP:1}
+  # Outbound webhook delivery for geofence events. Delivery is at-least-once;
+  # the receiver must deduplicate on the delivery id. A failure backs off and
+  # stops after max-attempts. Signing secrets are created per subscription and
+  # never read back through the API.
+  webhooks:
+    enabled: ${GMLC_WEBHOOKS_ENABLED:true}
+    flush-seconds: ${GMLC_WEBHOOKS_FLUSH_SECONDS:10}
+    initial-delay-seconds: ${GMLC_WEBHOOKS_INITIAL_DELAY_SECONDS:15}
+    timeout-seconds: ${GMLC_WEBHOOKS_TIMEOUT_SECONDS:5}
+    max-attempts: ${GMLC_WEBHOOKS_MAX_ATTEMPTS:5}
+    batch-size: ${GMLC_WEBHOOKS_BATCH_SIZE:50}
 
 logging:
   level:
