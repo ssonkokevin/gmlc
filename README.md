@@ -10,7 +10,7 @@ interfaces only - SLh and SLg over Diameter, MAP for 2G/3G, and `Ngmlc_Location`
 over SBI - and share no code.
 
 The split is recorded with its reasoning in the core repository under
-`docs/location/DECISIONS.md` (decisions D1-D16).
+`docs/location/DECISIONS.md` (decisions D1-D17).
 
 ## Status
 
@@ -29,7 +29,7 @@ The split is recorded with its reasoning in the core repository under
 | MAP service location: SRILCS then PSL at the MSC/SGSN, or ATI for an EPS subscriber | **Built and tested**; selected with `gmlc.location.transport=MAP` |
 | MAP SLR (network-initiated service response) | Not yet |
 | Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
-| Dashboard | Not yet |
+| Dashboard | **Built and tested**; static page, schematic map, no basemap |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -37,6 +37,7 @@ Nothing in this repository has talked to a real operator network.
 ## Endpoints today
 
 ```
+GET  /                   the operator dashboard (static page)              (open)
 GET  /v1/health          liveness, database, capability profile validity   (open)
 GET  /v1/capabilities    the tenant's capability profile                   (API key)
 GET  /v1/clients/me      the calling client's own configuration            (API key)
@@ -83,6 +84,39 @@ answers 503 rather than claim a method it cannot deliver.
 
 `X-Capability-Source: bundled|database` says where the served profile came
 from.
+
+## Dashboard
+
+`GET /` serves a self-contained page from `resources/static/` that talks to the
+same Le API with an API key pasted by the operator. The key lives in that tab's
+`sessionStorage`, is sent only as a bearer header to this origin, and is gone
+when the tab closes; the page embeds no credential and loads no third-party
+asset.
+
+It shows:
+
+- the cell plan as a **schematic** - cell centres and plan radii on a local
+  equirectangular projection, with a scale bar and no basemap. The page says
+  so: the circles are the plan's geometry, not a measurement;
+- a locate form that records consent first (or uses an existing record) and
+  submits the Le request with an `Idempotency-Key`;
+- the result envelope: method, engine, the uncertainty circle, confidence,
+  age, serving cell, accuracy asked and fulfilled, and the methods attempted,
+  or the failure code with its explanation;
+- the request log from `/v1/cdrs`, newest first. Clicking a row fetches
+  `/v1/locations/{id}` and shows the same envelope.
+
+The three files carry a strict content-security policy (`default-src 'none'`,
+`script-src 'self'`), `nosniff`, `no-referrer` and `no-store`; see
+`web/DashboardHeadersFilter`. The page itself is served without a key, but it
+opens no data path: every API call still needs one, and that contract is
+covered by `DashboardTest`.
+
+Limits, stated plainly: there is no basemap (tiles would be a third-party
+request and a licensing question), the map draws the first 500 cells of the
+plan, there is no server-side session, and the locate form cannot produce a
+position when no signalling peer is configured - it shows `NO_LCS_SOURCE`,
+which is the same answer the API gives.
 
 ## The Le request path
 
@@ -374,9 +408,10 @@ gmlc-app/src/main/java/com/hamiltel/gmlc/
 ├── location/      Le requests, state machine, locator, results, pseudonyms
 ├── map/           BER, TCAP, MAP LCS operations, TS 23.032 GAD
 ├── ss7/           SCCP unitdata, M3UA messages, M3UA/TCP transport
-└── web/           error mapping to RFC 7807 problems
+└── web/           error mapping to RFC 7807 problems, dashboard headers
 gmlc-app/src/main/resources/db/migration/   Flyway SQL, V1 onward
 gmlc-app/src/main/resources/location/       bundled capability profile
+gmlc-app/src/main/resources/static/         index.html, dashboard.css, dashboard.js
 ```
 
 ## Boundaries

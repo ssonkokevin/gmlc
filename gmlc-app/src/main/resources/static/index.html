@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GMLC - location gateway</title>
+  <link rel="stylesheet" href="/dashboard.css">
+  <script src="/dashboard.js" defer></script>
+</head>
+<body>
+<header class="masthead">
+  <div>
+    <h1>GMLC <span>location gateway</span></h1>
+    <p class="sub">Every answer is a circle: a centre, a radius, a confidence and an age.</p>
+  </div>
+  <p class="env" id="gateway">Hamiltel - Le API</p>
+</header>
+
+<main>
+  <section class="panel" id="session-panel">
+    <h2>Session</h2>
+    <form id="session-form" autocomplete="off">
+      <label for="api-key">API key</label>
+      <div class="row">
+        <input id="api-key" type="password" placeholder="gk_..." spellcheck="false" autocomplete="off">
+        <button type="submit" id="connect">Connect</button>
+        <button type="button" id="forget" class="quiet">Forget</button>
+      </div>
+    </form>
+    <p class="hint">The key is held in this tab only (sessionStorage) and sent only to this
+      gateway. Closing the tab forgets it; the registry keeps only its hash.</p>
+    <p class="message" id="session-message" role="status"></p>
+    <dl class="facts" id="client-facts"></dl>
+  </section>
+
+  <section class="panel" id="locate-panel">
+    <h2>Locate</h2>
+    <form id="locate-form">
+      <label for="msisdn">MSISDN</label>
+      <input id="msisdn" inputmode="numeric" pattern="[0-9]{7,15}" placeholder="256700000001" required>
+
+      <div class="row">
+        <div class="field">
+          <label for="purpose">Purpose</label>
+          <select id="purpose" required></select>
+        </div>
+        <div class="field">
+          <label for="accuracy">Accuracy (m)</label>
+          <input id="accuracy" type="number" min="1" max="100000" step="1" placeholder="optional">
+        </div>
+        <div class="field">
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option value="NORMAL">NORMAL</option>
+            <option value="LOW">LOW</option>
+            <option value="HIGH">HIGH</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="consent">Consent</label>
+      <select id="consent">
+        <option value="grant">Grant consent first, channel PORTAL</option>
+        <option value="skip">Already granted</option>
+      </select>
+
+      <button type="submit" id="locate">Request location</button>
+    </form>
+    <p class="hint" id="accuracy-hint">Accuracy may not be tighter than this client's entitlement.</p>
+    <p class="message" id="locate-message" role="status"></p>
+  </section>
+
+  <section class="panel wide" id="map-panel">
+    <h2>Cell plan and last position</h2>
+    <p class="hint">Schematic: cell centres and plan radii, local equirectangular projection.
+      There is no basemap; the circles are the operator's plan, not a measurement.</p>
+    <svg id="map" role="img" aria-label="Schematic of the cell plan and the last location"
+         preserveAspectRatio="xMidYMid meet"></svg>
+    <p class="legend">
+      <span class="swatch gsm"></span> GSM
+      <span class="swatch umts"></span> UMTS
+      <span class="swatch lte"></span> LTE
+      <span class="swatch nr"></span> NR
+      <span class="swatch result"></span> returned circle
+    </p>
+    <p class="message" id="map-message" role="status"></p>
+  </section>
+
+  <section class="panel" id="result-panel">
+    <h2>Result</h2>
+    <div id="result"><p class="empty">No request yet.</p></div>
+  </section>
+
+  <section class="panel wide" id="log-panel">
+    <h2>Request log</h2>
+    <div class="row">
+      <button type="button" id="refresh-log" class="quiet">Refresh</button>
+      <span class="hint inline">Each refresh is one call against this client's quota.</span>
+    </div>
+    <table id="log">
+      <thead>
+      <tr>
+        <th scope="col">When</th>
+        <th scope="col">Status</th>
+        <th scope="col">Result</th>
+        <th scope="col">Method</th>
+        <th scope="col">Uncertainty</th>
+        <th scope="col">Centre</th>
+        <th scope="col">Request</th>
+      </tr>
+      </thead>
+      <tbody><tr><td colspan="7" class="empty">Connect to load the log.</td></tr></tbody>
+    </table>
+    <p class="message" id="log-message" role="status"></p>
+  </section>
+</main>
+
+<footer>
+  <p>A fallback is labelled with its own method and uncertainty. The gateway returns no
+    coordinate without both, and none that the network did not supply.</p>
+</footer>
+</body>
+</html>

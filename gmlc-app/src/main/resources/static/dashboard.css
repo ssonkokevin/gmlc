@@ -1,0 +1,384 @@
+/* The dashboard is served by the gateway itself: no CDN, no webfont, no tiles. */
+
+:root {
+  --ink: #1b2430;
+  --muted: #5b6b7c;
+  --rule: #d8e0e8;
+  --page: #f3f6f9;
+  --panel: #ffffff;
+  --accent: #0b5cab;
+  --accent-ink: #ffffff;
+  --ok: #1e7a46;
+  --warn: #9a6700;
+  --bad: #b42318;
+  --gsm: #b8860b;
+  --umts: #7b4fa8;
+  --lte: #0b5cab;
+  --nr: #0f766e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+h1, h2 {
+  margin: 0;
+  font-weight: 600;
+}
+
+code, .mono {
+  font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.5rem;
+  background: var(--ink);
+  color: #f7fafc;
+}
+
+.masthead h1 {
+  font-size: 1.35rem;
+  letter-spacing: 0.01em;
+}
+
+.masthead h1 span {
+  font-weight: 400;
+  color: #b9c7d6;
+}
+
+.masthead .sub {
+  margin: 0.15rem 0 0;
+  color: #b9c7d6;
+  font-size: 0.92rem;
+}
+
+.masthead .env {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #b9c7d6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 2rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 1rem 1.1rem 1.2rem;
+  min-width: 0;
+}
+
+.panel.wide {
+  grid-column: 1 / -1;
+}
+
+#log-panel {
+  overflow-x: auto;
+}
+
+.panel h2 {
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0.55rem 0 0.25rem;
+}
+
+input, select, button {
+  font: inherit;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #b9c6d3;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+
+input:focus, select:focus, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.06);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+button.quiet {
+  background: #eef3f8;
+  color: var(--accent);
+  border-color: #b9c6d3;
+}
+
+#locate, #session-form button[type="submit"] {
+  margin-top: 0.9rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.row > input {
+  flex: 1 1 12rem;
+}
+
+.row > button {
+  flex: 0 0 auto;
+}
+
+.field {
+  flex: 1 1 7rem;
+  min-width: 0;
+}
+
+.hint {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.hint.inline {
+  margin: 0;
+  align-self: center;
+}
+
+.message {
+  min-height: 1.2em;
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+}
+
+.message.ok {
+  color: var(--ok);
+}
+
+.message.warn {
+  color: var(--warn);
+}
+
+.message.error {
+  color: var(--bad);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.8rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Result panel ------------------------------------------------------------ */
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: #eef3f8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.badge.delivered, .badge.answered {
+  background: #e3f4ea;
+  border-color: #9fd6b4;
+  color: var(--ok);
+}
+
+.badge.failed, .badge.timeout {
+  background: #fdeceb;
+  border-color: #f3b6b0;
+  color: var(--bad);
+}
+
+.headline {
+  margin: 0.2rem 0 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0.2rem 0 0;
+}
+
+.coords {
+  margin: 0.5rem 0 0;
+  font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+  font-size: 0.95rem;
+}
+
+.error-code {
+  margin: 0.3rem 0 0;
+  font-weight: 700;
+  color: var(--bad);
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Map --------------------------------------------------------------------- */
+
+#map {
+  display: block;
+  width: 100%;
+  height: 420px;
+  margin-top: 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: #fbfcfe;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.2rem;
+  border-radius: 50%;
+  vertical-align: -1px;
+  background: var(--rule);
+}
+
+.swatch.gsm { background: var(--gsm); }
+.swatch.umts { background: var(--umts); }
+.swatch.lte { background: var(--lte); }
+.swatch.nr { background: var(--nr); }
+.swatch.result { background: var(--bad); }
+
+/* Log --------------------------------------------------------------------- */
+
+#log {
+  width: 100%;
+  margin-top: 0.7rem;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+#log th {
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  border-bottom: 2px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#log td {
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+#log tbody tr[data-request] {
+  cursor: pointer;
+}
+
+#log tbody tr[data-request]:hover {
+  background: #f4f8fc;
+}
+
+#log .id {
+  font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+footer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 860px) {
+  main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #map {
+    height: 300px;
+  }
+}

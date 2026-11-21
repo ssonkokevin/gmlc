@@ -34,6 +34,17 @@ Docker is not installed on this machine. `Dockerfile` and `docker-compose.yml`
 are written but have never been built or run here - treat them as unverified
 until they are.
 
+## The dashboard was checked in a browser, not pixel-verified
+
+The page was exercised against a locally run `gmlc.jar` and a scratch
+PostgreSQL 17 cluster (the zonky binaries, no Docker): connect with a
+registered key, grant consent and locate (which fails closed with
+`NO_LCS_SOURCE` because no Diameter or MAP peer is configured), read the
+schematic map, open a log row and use Forget. The browser surface had no
+visible viewport, so no screenshot was taken; the fetch contract, headers and
+static files are covered by `DashboardTest`. A pixel review on a normal desktop
+browser is still worth doing before an operator demo.
+
 ## The MAP face has never seen a real HLR
 
 `MapClient` and `MapCellLocator` are tested against a loopback `M3uaTransport`
