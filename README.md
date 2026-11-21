@@ -37,7 +37,8 @@ The split is recorded with its reasoning in the core repository under
 | Console Location Request: client picker, governed submission, state, result envelope, timeline | **Built and tested** (phase C2) |
 | Console Monitoring & Tracing: stored exchanges, filters, rate chart, peer state, CSV export | **Built and tested** (phase C3) |
 | Console Reports: client, purpose, RAT, method and cell aggregates with CSV export | **Built and tested** (phase C3) |
-| Console Geofencing, Tracking, Administration | Not yet (phases C4-C6) |
+| Geofences: TS 23.032 shapes, consent-checked arms, ENTER/LEAVE/INSIDE from stored results | **Built and tested** (phase C4a) |
+| Console Geofencing screen, event webhooks, Tracking, Administration | Not yet (phases C4-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -94,6 +95,18 @@ GET  /v1/ops/exchanges/export.csv?...      the same list as CSV                (
 GET  /v1/ops/reports?range=                client, purpose, RAT, method, cell  (session, VIEW_DASHBOARD)
 GET  /v1/ops/reports/export.csv?range=&report=clients|purposes|rat|method|cell
                                            one report section as CSV           (session, EXPORT_CDR)
+
+GET  /v1/ops/geofences                     definitions with armed/inside counts  (session, VIEW_DASHBOARD)
+GET  /v1/ops/geofences/summary?range=      counts and the honest reporting state (session, VIEW_DASHBOARD)
+GET  /v1/ops/geofences/arms?state=INSIDE|OUTSIDE  current arms, masked label    (session, VIEW_DASHBOARD)
+GET  /v1/ops/geofences/events?range=&type=&geofenceId=&limit=&offset=
+                                           ENTER/LEAVE/INSIDE event feed        (session, VIEW_REQUESTS)
+GET  /v1/ops/geofences/{id}                one definition                       (session, VIEW_DASHBOARD)
+GET  /v1/ops/geofences/{id}/arms           the subjects armed on it             (session, VIEW_DASHBOARD)
+POST /v1/ops/geofences                     create (circle/polygon/ellipse/arc)  (session, MANAGE_GEOFENCES + CSRF)
+PATCH /v1/ops/geofences/{id}               rename, regroup, reportInside, enable (session, MANAGE_GEOFENCES + CSRF)
+POST /v1/ops/geofences/{id}/arm            arm a consented subject              (session, MANAGE_GEOFENCES + CSRF)
+DELETE /v1/ops/geofences/{id}/arms/{subjectRef}  disarm                         (session, MANAGE_GEOFENCES + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -354,6 +367,39 @@ The CSV uses quoted fields, ISO-8601 instants, no subscriber identifiers
 spreadsheet formula injection by prefixing a leading `= + - @` with an
 apostrophe. A cap of 50,000 rows is signalled with `X-Export-Truncated` and a
 header line instead of silently dropping data.
+
+**Geofences (phase C4).** A geofence is stored with the parameters the operator
+entered, in one of the four TS 23.032 area shapes:
+
+- **Circle**: centre and radius up to 500 km; containment is haversine distance.
+- **Polygon**: 3 to 15 vertices (a repeated GeoJSON closing point is dropped);
+  containment is ray casting with longitudes unwrapped around the test point,
+  so a polygon may cross the antimeridian. A vertex within 0.5 degrees of a
+  pole, consecutive duplicate vertices and a zero-area ring are refused.
+- **Ellipse**: centre, semi-major, semi-minor and the clockwise orientation of
+  the major axis. Containment uses a local metre plane at the shape's latitude
+  (a fraction of a percent at these radii); a centre beyond 80 degrees is
+  refused because the approximation stops being useful.
+- **Ellipsoid arc**: centre, outer and inner radius, start bearing and included
+  angle. Containment is geodesic distance plus initial bearing.
+
+Arming binds a pseudonymous `subject_ref` to a geofence and stores only a masked
+MSISDN/IMSI label for operators to recognise. Arming names a client and purpose
+and calls the same consent check as a locate: without an active consent it is
+refused with `PRIVACY_NOT_SATISFIED` and the refusal is audited
+(`GEOFENCE_ARMED`, `DENIED`). Every answered Le or console request then
+evaluates the subject's enabled fences against the result the gateway stored:
+the first position inside writes `ENTER`, a move out writes `LEAVE`, and an
+`INSIDE` event is written only when the fence sets `reportInside`. Events carry
+the result id, request id, method, uncertainty and coordinates, never the
+MSISDN. A disabled fence keeps its arms and history but is not evaluated.
+
+Honest limits: there is no network-initiated deferred, periodic, motion or
+UE-availability reporting (`GET /v1/ops/geofences/summary` returns those as
+`available: false` with a reason), and no outbound webhook subscription is
+built. Events exist only for results the gateway already obtained through a
+governed request. Re-evaluating the same result cannot duplicate an event: the
+event table's unique key includes the result id and event type.
 
 The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are

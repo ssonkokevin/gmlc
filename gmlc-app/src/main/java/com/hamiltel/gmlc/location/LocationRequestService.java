@@ -6,6 +6,7 @@ import com.hamiltel.gmlc.client.ApiClient;
 import com.hamiltel.gmlc.config.GmlcProperties;
 import com.hamiltel.gmlc.consent.ConsentService;
 import com.hamiltel.gmlc.diameter.SignallingException;
+import com.hamiltel.gmlc.geofence.GeofenceEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -45,12 +46,14 @@ public class LocationRequestService {
     private final AuditTrail audit;
     private final LocationLocator locator;
     private final LocationResultRepository results;
+    private final GeofenceEvaluator geofences;
     private final GmlcProperties properties;
 
     public LocationRequestService(LocationRequestRepository requests, ConsentService consents,
                                   SubscriberValidator validator, SubjectRefHasher hasher,
                                   CdrRepository cdrs, AuditTrail audit, LocationLocator locator,
-                                  LocationResultRepository results, GmlcProperties properties) {
+                                  LocationResultRepository results, GeofenceEvaluator geofences,
+                                  GmlcProperties properties) {
         this.requests = requests;
         this.consents = consents;
         this.validator = validator;
@@ -59,6 +62,7 @@ public class LocationRequestService {
         this.audit = audit;
         this.locator = locator;
         this.results = results;
+        this.geofences = geofences;
         this.properties = properties;
     }
 
@@ -170,6 +174,13 @@ public class LocationRequestService {
 
         requests.advance(client.tenantId(), requestId, RequestState.ANSWERED,
                 RequestState.DELIVERED, null, null);
+        try {
+            geofences.evaluate(client.tenantId(), subjectRef, requestId, resultId, estimate);
+        } catch (RuntimeException e) {
+            // A geofence defect must never take the position away from the client.
+            log.warn("geofence evaluation failed for request {}: {}", requestId,
+                    e.getClass().getSimpleName());
+        }
         LocationRequestRepository.StoredRequest answered = requests.find(
                         client.tenantId(), client.clientId(), requestId)
                 .orElseThrow(() -> new IllegalStateException("request vanished after delivery"));
