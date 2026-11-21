@@ -1,6 +1,6 @@
 # GMLC - Gateway Mobile Location Centre
 
-Hamiltel's location gateway: the Le API for clients, client and consent
+The location gateway: the Le API for clients, client and consent
 governance, the authoritative cell database, CDRs, and the signalling towards
 the HSS, MME, HLR and MSC/SGSN.
 
@@ -34,7 +34,8 @@ The split is recorded with its reasoning in the core repository under
 | Operator console reads: summary, throughput, mix, requests, detail, deferred | **Built and tested** (phase C1b) |
 | Peer health from observed exchanges, alert engine, acknowledgement | **Built and tested** (phase C1c) |
 | Operator console UI (React): shell, sign-in, Operations Dashboard | **Built and tested** (phase C1d) |
-| Console Location Request, Monitoring & Tracing, Geofencing, Tracking, Reports, Administration | Not yet (phases C2-C6) |
+| Console Location Request: client picker, governed submission, state, result envelope, timeline | **Built and tested** (phase C2) |
+| Console Monitoring & Tracing, Geofencing, Tracking, Reports, Administration | Not yet (phases C3-C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -81,6 +82,8 @@ GET  /v1/ops/requests?range=&state=&protocol=&purpose=&clientId=&recordStatus=&l
                                            paged request list, masked        (session, VIEW_REQUESTS)
 GET  /v1/ops/requests/{id}?reveal=false    one request, result, CDR, timeline (session, VIEW_REQUESTS;
                                            reveal also needs REVEAL_IDENTIFIERS)
+GET  /v1/ops/clients                       enabled clients of this tenant     (session, LOCATE)
+POST /v1/ops/locations                     governed request from the console  (session, LOCATE + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -254,13 +257,14 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C1d (below); there is no OIDC, no
+Honest limits: the console UI is phase C2 (below); there is no OIDC, no
 geofencing, no tracking and no scheduled reports. Those arrive with their own
 phases and are not claimed here. Peer `DOWN` requires observed exchange
 failures - a gateway that has never sent to a peer reports `IDLE`, never a
 health claim.
 
-**Console UI (phase C1d).** `/console/` serves the operator console: a React
+**Console UI (phase C1d shell, phase C2 Location Request).** `/console/` serves
+the operator console: a React
 19 + TypeScript bundle built by Vite into
 `gmlc-app/src/main/resources/static/console`. The shell has the sidebar
 sections (Operations, Location intelligence, Administration), a top bar with
@@ -277,6 +281,27 @@ result codes, peer health, active alerts with acknowledgement for holders of
 response time and result code. Figures the gateway cannot supply say why
 (alerts switched off, LDR not built, no p95 objective) instead of showing a
 zero.
+
+**Console Location Request (phase C2).** The screen lists this tenant's enabled
+clients from `GET /v1/ops/clients` (permission `LOCATE`) and submits through
+`POST /v1/ops/locations`, which calls the same `LocationRequestService` as the
+Le API. Consent, client purpose, accuracy entitlement, licence and the state
+machine are unchanged; the operator is written to the trail separately from the
+client (`OPS_LOCATION_SUBMITTED`, outcome `ALLOWED` or `DENIED` with a reason).
+The form offers only the chosen client's purposes, refuses an accuracy tighter
+than its entitlement before sending, and takes an optional idempotency key (a
+replay shows the earlier request and says no second row was created). After
+submission the screen re-reads `GET /v1/ops/requests/{id}` every 2 s while the
+request is open, then shows the stored state, error, result envelope (method,
+uncertainty, confidence, age, accuracy requested and met, shape, coordinates,
+cell, engine, node), the CDR summary and the merged timeline. Identifiers stay
+masked; revealing them needs `REVEAL_IDENTIFIERS` and writes
+`OPS_IDENTIFIER_REVEAL`. A request with no position says so instead of showing
+a placeholder, and a deployment with no LCS peer ends in a final state with its
+code rather than a guessed answer. `OpsLocationTest` checks the client picker
+permission, CSRF, permission refusal, unknown clients, consent refusal with a
+`DENIED` audit row, a permitted submission with its `ALLOWED` row, masked
+detail and timeline, idempotent replay, and accuracy refusal.
 
 The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are
@@ -303,6 +328,8 @@ strict policy on the page and its assets, and that serving it does not open
 Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [sign-in](docs/location/console-signin.png),
 [dashboard](docs/location/console-dashboard.png),
+[Location Request](docs/location/console-locate.png),
+[a refused request followed to its final state](docs/location/console-locate-result.png),
 [a screen that is not built yet](docs/location/console-not-built.png).
 
 ## The Le request path

@@ -204,6 +204,113 @@ export interface Deferred {
   pastDeadline: number;
 }
 
+export interface ClientView {
+  clientId: string;
+  name: string;
+  purposes: string[];
+  maxAccuracyM: number;
+}
+
+export interface Submission {
+  requestId: string;
+  state: string;
+  purpose: string;
+  priority: string;
+  accuracyRequestedM?: number;
+  errorCode?: string;
+  errorDetail?: string;
+  createdAt: string;
+  updatedAt: string;
+  deadlineAt?: string;
+  completedAt?: string;
+  replayed: boolean;
+}
+
+export interface Identifier {
+  msisdn?: string;
+  imsi?: string;
+  masked: boolean;
+}
+
+export interface StoredResult {
+  resultId: string;
+  requestId: string;
+  method: string;
+  methodsAttempted: string[];
+  shape?: string;
+  latitude?: number;
+  longitude?: number;
+  uncertaintyM?: number;
+  confidence?: number;
+  ageSeconds?: number;
+  accuracyRequestedM?: number;
+  accuracyFulfilled?: boolean;
+  servingCell?: string;
+  engine?: string;
+  positioningNode?: string;
+  producedAt?: string;
+}
+
+export interface CdrDetail {
+  cdrId: number;
+  resultCode?: string;
+  recordStatus?: string;
+  protocol?: string;
+  operation?: string;
+  methodsAttempted?: string[];
+  method?: string;
+  rat?: string;
+  responseTimeMs?: number;
+  accuracyRequestedM?: number;
+  accuracyAchievedM?: number;
+  accuracyFulfilled?: boolean;
+  ageSeconds?: number;
+  pagingPerformed?: boolean;
+  servingNode?: string;
+  positioningNode?: string;
+  uncertaintyM?: number;
+  confidence?: number;
+  shape?: string;
+  latitude?: number;
+  longitude?: number;
+  createdAt?: string;
+}
+
+export interface TimelineEvent {
+  at: string;
+  action: string;
+  outcome?: string;
+  source?: string;
+  detail?: Record<string, unknown> | null;
+}
+
+export interface RequestDetail {
+  requestId: string;
+  clientId: string;
+  clientName: string;
+  purpose: string;
+  state: string;
+  errorCode?: string;
+  errorDetail?: string;
+  protocol?: string;
+  rat?: string;
+  servingNode?: string;
+  positioningNode?: string;
+  accuracyRequestedM?: number;
+  priority?: string;
+  createdAt: string;
+  updatedAt: string;
+  deadlineAt?: string;
+  completedAt?: string;
+  resultId?: string;
+  environment: string;
+  dataSource: string;
+  identifiers: Identifier;
+  result?: StoredResult | null;
+  cdr?: CdrDetail | null;
+  timeline: TimelineEvent[];
+}
+
 export type RangeKey = '1h' | '24h' | '7d' | '30d';
 
 export interface DashboardData {

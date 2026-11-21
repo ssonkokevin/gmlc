@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
 import { Dashboard } from './pages/Dashboard';
+import { Locate } from './pages/Locate';
 import { SignIn } from './pages/SignIn';
 import type { RangeKey, Session } from './types';
 
@@ -67,21 +68,15 @@ function routeFromHash(): RouteKey {
   return (ROUTE_KEYS as string[]).includes(hash) ? (hash as RouteKey) : 'dashboard';
 }
 
-const NOT_YET: Record<Exclude<RouteKey, 'dashboard'>, { phase: string; lines: string[] }> = {
+type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'locate'>;
+
+const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
   monitoring: {
     phase: 'phase C3',
     lines: [
       'A per-request signalling timeline: what went to the peer, what came back, and when.',
       'Live CDR inspection with export for the roles that hold it.',
       'Peer exchange history over time, not just the last outcome.',
-    ],
-  },
-  locate: {
-    phase: 'phase C2',
-    lines: [
-      'Submit a location request from the console through the same consent, purpose and licence checks as an API client.',
-      'See the method, uncertainty, confidence, age and data source of the answer that came back.',
-      'Follow one request through its state machine until it is answered, deferred or refused.',
     ],
   },
   tracking: {
@@ -252,8 +247,8 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">Hamiltel</span>
-          <span className="brand-sub">GMLC operations</span>
+          <span className="brand-mark">GMLC</span>
+          <span className="brand-sub">Operations console</span>
         </div>
         <nav aria-label="Console sections">
           {NAV.map((section) => (
@@ -336,8 +331,8 @@ export function App() {
                   Peer state comes from exchanges the gateway attempted. Silence is IDLE, never
                   evidence that a peer is healthy.
                 </p>
-                <p className="note">Console build: phase C1. Location Request, Monitoring, Geofencing,
-                  Tracking, Reports and Administration screens arrive in later phases.</p>
+                <p className="note">Console build: phase C2. Location Request is live; Monitoring,
+                  Geofencing, Tracking, Reports and Administration screens arrive in later phases.</p>
               </div>
             </details>
 
@@ -379,6 +374,8 @@ export function App() {
               onOpenAlerts={setOpenAlerts}
               onExpired={expired}
             />
+          ) : route === 'locate' ? (
+            <Locate session={session} onExpired={expired} />
           ) : (
             <ComingSoon route={route} />
           )}
@@ -388,7 +385,7 @@ export function App() {
   );
 }
 
-function ComingSoon({ route }: { route: Exclude<RouteKey, 'dashboard'> }) {
+function ComingSoon({ route }: { route: NotBuiltKey }) {
   const plan = NOT_YET[route];
   return (
     <div className="coming-soon">

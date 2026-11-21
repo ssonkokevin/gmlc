@@ -33,7 +33,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (session: Session) => void 
   return (
     <div className="signin-page">
       <main className="signin-card">
-        <p className="brand-mark">Hamiltel GMLC</p>
+        <p className="brand-mark">GMLC</p>
         <h1>Operations console</h1>
         <p className="signin-lead">
           Operator accounts are people, not API clients. Sign-in uses your password and the

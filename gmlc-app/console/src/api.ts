@@ -1,12 +1,15 @@
 import type {
   AlertPage,
+  ClientView,
   DashboardData,
   Deferred,
   Mix,
   PeerPage,
   RangeKey,
+  RequestDetail,
   RequestPage,
   Session,
+  Submission,
   Summary,
   Throughput,
 } from './types';
@@ -119,6 +122,30 @@ export const api = {
 
   acknowledge(alertId: number): Promise<void> {
     return call<void>(`/v1/ops/alerts/${alertId}/acknowledge`, { method: 'POST' });
+  },
+
+  clients(): Promise<ClientView[]> {
+    return call<ClientView[]>('/v1/ops/clients');
+  },
+
+  submitLocation(input: {
+    clientId: string;
+    msisdn?: string;
+    imsi?: string;
+    purpose: string;
+    accuracyMeters?: number;
+    priority?: string;
+    idempotencyKey?: string;
+  }): Promise<Submission> {
+    return call<Submission>('/v1/ops/locations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  requestDetail(requestId: string, reveal = false): Promise<RequestDetail> {
+    const suffix = reveal ? '?reveal=true' : '';
+    return call<RequestDetail>(`/v1/ops/requests/${requestId}${suffix}`);
   },
 };
 

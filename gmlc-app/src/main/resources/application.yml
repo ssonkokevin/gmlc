@@ -87,7 +87,7 @@ gmlc:
     session-absolute-hours: ${GMLC_OPS_SESSION_ABSOLUTE_HOURS:8}
     lockout-threshold: ${GMLC_OPS_LOCKOUT_THRESHOLD:5}
     lockout-minutes: ${GMLC_OPS_LOCKOUT_MINUTES:15}
-    totp-issuer: ${GMLC_OPS_TOTP_ISSUER:Hamiltel GMLC}
+    totp-issuer: ${GMLC_OPS_TOTP_ISSUER:GMLC}
     totp-period-seconds: ${GMLC_OPS_TOTP_PERIOD_SECONDS:30}
     # Argon2id cost. The defaults are the OWASP recommendation; a test or a
     # constrained host may lower them, and existing hashes keep their cost.

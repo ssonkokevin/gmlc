@@ -39,7 +39,7 @@ public record OpsProperties(
         @DefaultValue("8") long sessionAbsoluteHours,
         @DefaultValue("5") int lockoutThreshold,
         @DefaultValue("15") long lockoutMinutes,
-        @DefaultValue("Hamiltel GMLC") String totpIssuer,
+        @DefaultValue("GMLC") String totpIssuer,
         @DefaultValue("30") int totpPeriodSeconds,
         @DefaultValue("19456") int argon2MemoryKib,
         @DefaultValue("2") int argon2Iterations,
