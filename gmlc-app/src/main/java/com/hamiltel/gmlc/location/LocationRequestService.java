@@ -104,7 +104,7 @@ public class LocationRequestService {
         Instant deadline = Instant.now().plus(DEADLINE);
         boolean inserted = requests.insert(requestId, client.tenantId(), client.clientId(),
                 idempotencyKey, input.purpose(), input.msisdn(), input.imsi(),
-                input.accuracyMeters(), input.priorityOrDefault(), deadline);
+                input.accuracyMeters(), input.priorityOrDefault(), locator.protocol(), deadline);
         if (!inserted) {
             return requests.findByKey(client.tenantId(), client.clientId(), idempotencyKey)
                     .map(existing -> new Outcome(existing, true))
@@ -160,7 +160,8 @@ public class LocationRequestService {
 
         long responseMs = Duration.between(stored.createdAt(), Instant.now()).toMillis();
         cdrs.writeSuccess(client.tenantId(), requestId, client.clientId(), privacy.consentId(),
-                subjectRef, estimate, responseMs);
+                subjectRef, estimate, locator.protocol(), operation(estimate.methodsAttempted()),
+                responseMs);
         audit.recordForSubject(client.tenantId(), client.clientId(), "REQUEST_ANSWERED",
                 subjectRef, requestId, AuditTrail.Outcome.ALLOWED,
                 Map.of("method", estimate.method(), "uncertaintyM", estimate.uncertaintyM()));
@@ -183,7 +184,7 @@ public class LocationRequestService {
                 RequestState.FAILED, code, detail);
         long responseMs = Duration.between(stored.createdAt(), Instant.now()).toMillis();
         cdrs.writeFailure(client.tenantId(), requestId, client.clientId(), privacy.consentId(),
-                subjectRef, code, stored.accuracyRequestedM(), responseMs);
+                subjectRef, code, stored.accuracyRequestedM(), locator.protocol(), responseMs);
         audit.record(client.tenantId(), client.clientId(), "REQUEST_FAILED", requestId,
                 AuditTrail.Outcome.ERROR, Map.of("code", code));
         log.info("request {} failed closed: {}", requestId, code);
@@ -192,6 +193,27 @@ public class LocationRequestService {
                         client.tenantId(), client.clientId(), requestId)
                 .orElseThrow(() -> new IllegalStateException("request vanished after failure"));
         return new Outcome(failed, false);
+    }
+
+    /**
+     * The operation a completed exchange used, from the locator's own record
+     * of what it tried. Anything unrecognised stays null: the console then
+     * reports the request as unattributed rather than guessing.
+     */
+    static String operation(java.util.List<String> attempted) {
+        if (attempted == null) {
+            return null;
+        }
+        if (attempted.contains("MAP_ATI")) {
+            return "SRILCS_ATI";
+        }
+        if (attempted.contains("MAP_PSL")) {
+            return "SRILCS_PSL";
+        }
+        if (attempted.contains("SLG_PLA") || attempted.contains("SLG_PLR")) {
+            return "RIR_PLA";
+        }
+        return null;
     }
 
     public LocationRequestRepository.StoredRequest get(ApiClient client, UUID requestId) {

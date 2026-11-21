@@ -3,6 +3,8 @@ package com.hamiltel.gmlc.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
+import java.util.Locale;
+
 /**
  * Operator-console settings. They are deployment settings, not tenant data:
  * the Argon2 cost, the two session clocks, the lockout threshold and the
@@ -23,6 +25,12 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param bootstrapUsername   create this administrator on startup if absent
  * @param bootstrapPassword   its initial password; never committed
  * @param bootstrapTotpSecret its base32 TOTP secret; never committed
+ * @param environment         LAB, BENCH or PRODUCTION; it decides the honesty
+ *                            label on every figure the console shows and
+ *                            whether a report may be produced at all
+ * @param sloP95Ms            the response-time SLO the dashboard compares
+ *                            against; 0 means no SLO has been agreed, and the
+ *                            console then shows the percentiles alone
  */
 @ConfigurationProperties(prefix = "gmlc.ops")
 public record OpsProperties(
@@ -38,5 +46,25 @@ public record OpsProperties(
         @DefaultValue("1") int argon2Parallelism,
         String bootstrapUsername,
         String bootstrapPassword,
-        String bootstrapTotpSecret) {
+        String bootstrapTotpSecret,
+        @DefaultValue("LAB") String environment,
+        @DefaultValue("0") int sloP95Ms) {
+
+    /**
+     * The label attached to every figure the console derives from stored rows.
+     * An unset or unknown environment is treated as a lab, which is the
+     * conservative direction: data is never presented as real until the
+     * deployment says it is.
+     */
+    public String dataSourceLabel() {
+        return switch (normalisedEnvironment()) {
+            case "PRODUCTION", "PROD" -> "REAL";
+            case "BENCH" -> "BENCH";
+            default -> "LAB_SIM";
+        };
+    }
+
+    public String normalisedEnvironment() {
+        return environment == null ? "LAB" : environment.trim().toUpperCase(Locale.ROOT);
+    }
 }

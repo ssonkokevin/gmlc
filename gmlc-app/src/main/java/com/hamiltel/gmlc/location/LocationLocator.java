@@ -14,6 +14,15 @@ public interface LocationLocator {
 
     Optional<LocationEstimate> locate(Query query) throws SignallingException;
 
+    /**
+     * The signalling face this locator uses: {@code MAP} or {@code DIAMETER}.
+     * It is a property of the deployment, so it is recorded even when the
+     * exchange fails and no estimate exists.
+     */
+    default String protocol() {
+        return "UNKNOWN";
+    }
+
     record Query(long tenantId, String msisdn, String imsi, Integer accuracyMeters,
                  String purpose, String lcsClientName) {
 

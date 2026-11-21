@@ -63,4 +63,12 @@ public class OpsErrorHandler {
         problem.setProperty("code", e.code());
         return problem;
     }
+
+    @ExceptionHandler(OpsBadRequestException.class)
+    public ProblemDetail badRequest(OpsBadRequestException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setTitle("Invalid request");
+        problem.setProperty("code", e.code());
+        return problem;
+    }
 }

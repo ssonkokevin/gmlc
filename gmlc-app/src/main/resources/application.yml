@@ -74,6 +74,14 @@ gmlc:
   # plain-HTTP lab must set GMLC_OPS_COOKIE_SECURE=false explicitly, or the
   # browser will refuse to return the cookie and every call will be 401.
   ops:
+    # LAB, BENCH or PRODUCTION. It labels every figure the console shows:
+    # LAB_SIM or BENCH until the deployment says PRODUCTION, after which the
+    # label reads REAL. Nothing else may claim a real-network source.
+    environment: ${GMLC_OPS_ENVIRONMENT:LAB}
+    # The p95 response-time objective shown against the measured percentile.
+    # 0 means no objective has been agreed, so the console shows the
+    # percentile alone and makes no SLO claim.
+    slo-p95-ms: ${GMLC_OPS_SLO_P95_MS:0}
     cookie-secure: ${GMLC_OPS_COOKIE_SECURE:true}
     session-idle-minutes: ${GMLC_OPS_SESSION_IDLE_MINUTES:15}
     session-absolute-hours: ${GMLC_OPS_SESSION_ABSOLUTE_HOURS:8}

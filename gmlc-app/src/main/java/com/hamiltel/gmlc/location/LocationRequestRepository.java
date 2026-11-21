@@ -36,16 +36,16 @@ public class LocationRequestRepository {
     /** @return false when the idempotency key already belongs to a request */
     public boolean insert(UUID requestId, long tenantId, UUID clientId, String idempotencyKey,
                           String purpose, String msisdn, String imsi, Integer accuracyMeters,
-                          String priority, Instant deadline) {
+                          String priority, String protocol, Instant deadline) {
         int rows = jdbc.update("""
                 INSERT INTO location_request (request_id, tenant_id, client_id, idempotency_key,
                     purpose, subscriber_msisdn, subscriber_imsi, requested_accuracy_m,
-                    requested_priority, state, deadline_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', ?)
+                    requested_priority, state, protocol, deadline_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 requestId, tenantId, clientId, idempotencyKey, purpose, msisdn, imsi,
-                accuracyMeters, priority, Timestamp.from(deadline));
+                accuracyMeters, priority, protocol, Timestamp.from(deadline));
         return rows == 1;
     }
 

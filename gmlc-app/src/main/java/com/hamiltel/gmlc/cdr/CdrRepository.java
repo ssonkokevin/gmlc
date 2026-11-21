@@ -28,15 +28,15 @@ public class CdrRepository {
 
     public void writeFailure(long tenantId, UUID requestId, UUID clientId, UUID consentId,
                              String subscriberRef, String resultCode, Integer accuracyRequestedM,
-                             long responseTimeMs) {
+                             String protocol, long responseTimeMs) {
         jdbc.update("""
                 INSERT INTO cdr (tenant_id, request_id, client_id, consent_id, subscriber_ref,
-                    result_code, accuracy_requested_m, response_time_ms, record_status,
+                    result_code, accuracy_requested_m, protocol, response_time_ms, record_status,
                     methods_attempted)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'FAILED', ARRAY[]::text[])
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'FAILED', ARRAY[]::text[])
                 """,
                 tenantId, requestId, clientId, consentId, subscriberRef, resultCode,
-                accuracyRequestedM, (int) Math.max(0, responseTimeMs));
+                accuracyRequestedM, protocol, (int) Math.max(0, responseTimeMs));
     }
 
     /**
@@ -44,15 +44,17 @@ public class CdrRepository {
      * export can be read without joining the result table.
      */
     public void writeSuccess(long tenantId, UUID requestId, UUID clientId, UUID consentId,
-                             String subscriberRef, LocationEstimate estimate, long responseTimeMs) {
+                             String subscriberRef, LocationEstimate estimate, String protocol,
+                             String operation, long responseTimeMs) {
         jdbc.update("""
                 INSERT INTO cdr (tenant_id, request_id, client_id, consent_id, subscriber_ref,
                     rat_type, positioning_method, methods_attempted, result_code,
                     accuracy_requested_m, accuracy_achieved_m, accuracy_fulfilled,
                     response_time_ms, positioning_node, serving_node, age_of_location_s,
-                    shape, latitude, longitude, uncertainty_m, confidence, record_status)
+                    shape, latitude, longitude, uncertainty_m, confidence, record_status,
+                    protocol, operation)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OK', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        'ANSWERED')
+                        'ANSWERED', ?, ?)
                 """,
                 tenantId, requestId, clientId, consentId, subscriberRef,
                 estimate.rat(), estimate.method(),
@@ -61,7 +63,7 @@ public class CdrRepository {
                 (int) Math.max(0, responseTimeMs), estimate.positioningNode(),
                 estimate.servingCell(), estimate.ageSeconds(), estimate.shape(),
                 estimate.latitude(), estimate.longitude(), estimate.uncertaintyM(),
-                estimate.confidence());
+                estimate.confidence(), protocol, operation);
     }
 
     public List<CdrRow> recent(long tenantId, UUID clientId, int limit) {

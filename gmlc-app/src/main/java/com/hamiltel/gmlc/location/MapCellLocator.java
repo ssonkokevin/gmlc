@@ -46,6 +46,11 @@ public class MapCellLocator implements LocationLocator {
     }
 
     @Override
+    public String protocol() {
+        return "MAP";
+    }
+
+    @Override
     public Optional<LocationEstimate> locate(Query query) {
         try {
             return resolve(query);

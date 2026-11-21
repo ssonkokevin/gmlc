@@ -31,7 +31,8 @@ The split is recorded with its reasoning in the core repository under
 | Diameter Sh (UDR) | Deferred - TS 29.329 not on the build host; codes are not guessed |
 | Dashboard | **Built and tested**; static page, schematic map, no basemap |
 | Operator console identity: Argon2id, TOTP, sessions, CSRF, roles, lockout, audit | **Built and tested** |
-| Operator console UI and aggregate endpoints | Not yet (phase C1) |
+| Operator console reads: summary, throughput, mix, requests, detail, deferred | **Built and tested** (phase C1b) |
+| Operator console UI (React), alert engine, tracking, geofencing, reports | Not yet (phases C1c onwards) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -65,6 +66,15 @@ POST /v1/ops/users       create one; returns its password and TOTP once    (sess
 PATCH /v1/ops/users/{id} change role or enabled state                      (session, MANAGE_USERS)
 POST /v1/ops/users/{id}/sign-out  end every session that user holds        (session, MANAGE_USERS)
 POST /v1/ops/users/{id}/password  set a new password                       (session, MANAGE_USERS)
+
+GET  /v1/ops/summary?range=1h|24h|7d|30d   KPI totals, deltas, chart points (session, VIEW_DASHBOARD)
+GET  /v1/ops/throughput?range=&bucket=     MAP vs DIAMETER per bucket      (session, VIEW_DASHBOARD)
+GET  /v1/ops/mix?range=                    operation, method, RAT, result     (session, VIEW_DASHBOARD)
+GET  /v1/ops/deferred                      the honest state of LDR support    (session, VIEW_DASHBOARD)
+GET  /v1/ops/requests?range=&state=&protocol=&purpose=&clientId=&recordStatus=&limit=&offset=
+                                           paged request list, masked        (session, VIEW_REQUESTS)
+GET  /v1/ops/requests/{id}?reveal=false    one request, result, CDR, timeline (session, VIEW_REQUESTS;
+                                           reveal also needs REVEAL_IDENTIFIERS)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -133,8 +143,8 @@ which is the same answer the API gives.
 ## Operator console identity (phase C1)
 
 Operators are people with accounts, not clients with API keys. The identity
-layer is built; the console UI and its aggregate endpoints follow in the same
-phase. Two surfaces exist today:
+layer and the dashboard's read endpoints are built; the React console that
+consumes them follows. Two surfaces exist today:
 
 - `/client` (the page above) is for customers who hold their own API key;
 - `/v1/ops/**` is for operators and uses a session, never an API key. The API
@@ -189,11 +199,35 @@ blank, no account is created and the console stays closed.
 
 **Masking.** `ops/OpsMasking` keeps the first five and last two characters of
 MSISDN, IMSI and IMEI. Revealing is a permission and writes an audit row; the
-rule is covered by unit tests and will be applied by the console pages.
+rule is covered by unit tests and applies to every list row. On a request
+detail `?reveal=true` needs `REVEAL_IDENTIFIERS`; a refusal is audited as
+`OPS_IDENTIFIER_REVEAL` with outcome `DENIED`, an allowed reveal with
+`ALLOWED`, and the identifier itself is never written to the trail.
 
-Honest limits: there is no UI yet, no OIDC, no password-age policy and no
-required second-person approval for configuration changes; those arrive with
-their own phases and are not claimed here.
+**Dashboard reads (phase C1b).** Four windows (`1h`, `24h`, `7d`, `30d`) with
+default buckets of 5m, 1h, 6h and 1d; `bucket=` overrides one of `1m`..`1d`,
+refused with `BUCKET_TOO_SMALL` beyond 1000 points. A request is the spine of
+every figure: success rate divides answered by *finished* work, a request with
+no CDR yet counts as in flight, and p50/p95 are computed from recorded response
+times. `GMLC_OPS_SLO_P95_MS` supplies the objective; while it is 0 the console
+shows the percentiles and makes no SLO claim.
+
+Every response carries an honesty label. `GMLC_OPS_ENVIRONMENT` is `LAB`,
+`BENCH` or `PRODUCTION`; `dataSource` in the body reads `LAB_SIM`, `BENCH` or
+`REAL` accordingly, and an unset value is treated as `LAB_SIM`. The protocol
+(`MAP`/`DIAMETER`) is recorded when the request is created and the operation
+when the CDR is written; a CDR with no recognised operation appears as
+`UNATTRIBUTED` rather than being guessed into one.
+
+A feature that is not built says so: `deferred`, `alerts` and `licence` return
+`available: false` with a reason, and `deferred` additionally reports the real
+`open` and `pastDeadline` counts. The figures are aggregate SQL over stored
+rows; `OpsDashboardTest` recomputes each of them with direct SQL and fails if
+the endpoint and the database disagree.
+
+Honest limits: there is no UI yet, no OIDC, no alert engine, no geofencing, no
+tracking and no scheduled reports; those arrive with their own phases and are
+not claimed here.
 
 ## The Le request path
 

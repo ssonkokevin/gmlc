@@ -42,6 +42,11 @@ public class DiameterCellLocator implements LocationLocator {
     }
 
     @Override
+    public String protocol() {
+        return "DIAMETER";
+    }
+
+    @Override
     public Optional<LocationEstimate> locate(Query query) {
         SubscriberId subscriber = new SubscriberId(query.imsi(), query.msisdn());
         ServingNode node = slh.routeInfo(subscriber)

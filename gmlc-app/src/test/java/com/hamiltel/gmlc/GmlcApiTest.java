@@ -53,11 +53,11 @@ class GmlcApiTest {
     void migrationsApplyAndCreateTheLocationTables() {
         Integer applied = jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where success", Integer.class);
-        assertThat(applied).isEqualTo(3);
+        assertThat(applied).isEqualTo(4);
         String version = jdbc.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class);
-        assertThat(version).isEqualTo("3");
+        assertThat(version).isEqualTo("4");
 
         Integer tables = jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_schema = 'public'"
