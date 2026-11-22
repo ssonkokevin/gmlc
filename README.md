@@ -48,6 +48,7 @@ The split is recorded with its reasoning in the core repository under
 | Users and access API: role matrix, live sessions, audit view, sign-in policy, client register | **Built and tested** (phase C6b) |
 | Break-glass: sealed deployment code, half-hour ADMIN elevation, review by a second administrator | **Built and tested** (phase C6b) |
 | Console Administration (configuration, users, four-eyes screens) | **Built and tested** (phase C6c) |
+| MLP 3.x standard location immediate over XML, on the same Le path | **Built and tested** (phase C7a); triggered reporting answers `108` |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -63,6 +64,7 @@ GET  /v1/clients/me      the calling client's own configuration            (API 
 
 POST /v1/locations       submit a location request                         (API key)
 GET  /v1/locations/{id}  its state, failure code, timestamps and result       (API key)
+POST /mlp               OMA MLP 3.x standard location immediate (slir)    (API key)
 GET  /v1/subscribers/{trackedId}/last-known  the caller's tracked subject   (API key)
 
 POST /v1/consents        record consent for a subject and purpose          (API key)
@@ -338,7 +340,8 @@ longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
 Honest limits: the console UI covers phases C1 to C6c; OIDC and scheduled
-reports are not built yet. A
+reports are not built yet, and the MLP face implements only the synchronous
+standard location immediate service. A
 tracked subject is a roster row over stored results, not a live network feed,
 and a schedule places governed requests on a timer rather than subscribing to
 the network. Those arrive with their own phases and are not claimed here. Peer
@@ -808,6 +811,68 @@ Set `GMLC_SUBJECT_PEPPER` in a real deployment: with it the reference is
 HMAC-SHA256, so a database copy cannot be matched against a list of known
 numbers. Without it the reference is unkeyed SHA-256 and every start logs a
 warning.
+
+### The MLP face (phase C7a)
+
+`POST /mlp` accepts an OMA MLP 3.x `svc_init/slir` document and answers a
+`svc_result/slia`. It is a translation over the same Le path, not a second
+route: the API key identifies the client, consent is the Le consent check, and
+the request, CDR and audit rows are the ones Le writes.
+
+```bash
+curl -s -X POST localhost:8082/mlp \
+  -H "Authorization: Bearer $GMLC_API_KEY" -H 'content-type: text/xml' \
+  -d '<?xml version="1.0"?>
+<svc_init ver="3.2.0">
+  <hdr ver="3.2.0"><client><id>portal</id><serviceid>COMMERCIAL_LBS</serviceid></client></hdr>
+  <slir ver="3.2.0">
+    <msids><msid type="MSISDN">256700000001</msid></msids>
+    <eqop><hor_acc>2000</hor_acc></eqop>
+    <prio type="HIGH"/>
+  </slir>
+</svc_init>'
+```
+
+What maps to what:
+
+- `hdr/client/serviceid` is the Le purpose (`COMMERCIAL_LBS` in the example).
+  A numeric service id is accepted only when the client holds exactly one
+  purpose; otherwise the request is refused with `111`.
+- `msids/msid` accepts `type="MSISDN"` or `type="IMSI"` with `enc="ASC"`.
+  Up to ten subjects are answered in one request; each is a separate Le
+  request, so one subject without consent does not take the answer from the
+  others.
+- `eqop/hor_acc` becomes `accuracyMeters`; `prio` `HIGH`/`NORMAL` becomes the
+  request priority. `loc_type` may be `CURRENT` or `CURRENT_OR_LAST`; this
+  gateway only returns a fresh position or a failure.
+- The answer is a `CircularArea` in EPSG:4326 with coordinates in degrees,
+  minutes, seconds and hemisphere, `radius` as the uncertainty and `lev_conf`
+  as the confidence. `qos_not_met` is present when the radius is larger than
+  the `hor_acc` the client asked for. MLP has no field for the positioning
+  method; it stays on the Le record and the CDR rather than being forced into
+  the XML.
+
+Refusals use the OMA result codes: `103` unsupported version, `104` too many
+items, `105`/`106` format or syntax, `107`/`109`/`110`/`111` unsupported or
+invalid elements, `601` quality not attainable (accuracy beyond the client's
+entitlement), `602` positioning not allowed (no consent), `605` misconfiguration
+(no signalling source) and `6` position method failure. A request that is
+well-formed but refused still answers HTTP 200 with the MLP result, as the
+standard expects.
+
+**Not built: triggered reporting.** An `svc_init/tlrr` (or `tlsr`) answers its
+own `tlra`/`tlsa` with `108 SERVICE NOT SUPPORTED`. MLP delivers triggered
+reports by pushing `tlrep` to a caller-supplied URL; this gateway has no
+allowlisted push target and will not fetch a URL named in a request. The
+operator-side tracking schedules are a separate feature and are not presented
+as MLP triggered reporting.
+
+No official OMA DTD is validated against at runtime: the parser accepts the
+MLP 3.2 element grammar this adapter implements, refuses a document whose
+`ver` is not 3.x, and never loads the external DTD or an entity a request
+names. Interoperability with a particular certified MLP client has **not been
+tested** - the conformance claim is limited to the shapes exercised in
+`MlpApiTest`.
 
 ## Diameter signalling
 

@@ -46,8 +46,12 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        // /mlp is the OMA MLP face, authenticated by the same API client key
+        // and charged against the same quota as /v1.
+        boolean gateway = path.startsWith("/v1/") || path.equals("/mlp")
+                || path.startsWith("/mlp/");
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
-                || !path.startsWith("/v1/")
+                || !gateway
                 || path.equals("/v1/health")
                 || path.equals("/v1/admin")
                 || path.startsWith("/v1/admin/")
