@@ -2,6 +2,7 @@ import type {
   AlertPage,
   ArmView,
   ClientView,
+  CreatedChannel,
   CreatedSubscription,
   DashboardData,
   Deferred,
@@ -13,6 +14,7 @@ import type {
   GeofenceSummary,
   GeofenceView,
   Mix,
+  NotificationChannel,
   PeerPage,
   RangeKey,
   Reports,
@@ -23,6 +25,11 @@ import type {
   SubscriptionView,
   Summary,
   Throughput,
+  TrackedSubject,
+  TrackingFix,
+  TrackingRun,
+  TrackingSchedule,
+  TrackingSummary,
 } from './types';
 
 let csrfToken: string | null = null;
@@ -290,6 +297,106 @@ export const api = {
 
   deliveries(subscriptionId: string, limit = 20): Promise<DeliveryView[]> {
     return call<DeliveryView[]>(`/v1/ops/subscriptions/${subscriptionId}/deliveries?limit=${limit}`);
+  },
+
+  trackingSummary(): Promise<TrackingSummary> {
+    return call<TrackingSummary>('/v1/ops/tracking/summary');
+  },
+
+  trackedSubjects(): Promise<TrackedSubject[]> {
+    return call<TrackedSubject[]>('/v1/ops/tracking');
+  },
+
+  trackingTrail(trackedId: string, limit = 100): Promise<TrackingFix[]> {
+    return call<TrackingFix[]>(`/v1/ops/tracking/${trackedId}/trail?limit=${limit}`);
+  },
+
+  addTrackedSubject(input: {
+    clientId: string;
+    msisdn?: string;
+    imsi?: string;
+    purpose: string;
+  }): Promise<TrackedSubject> {
+    return call<TrackedSubject>('/v1/ops/tracking', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchTrackedSubject(trackedId: string, patch: { enabled: boolean }): Promise<TrackedSubject> {
+    return call<TrackedSubject>(`/v1/ops/tracking/${trackedId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteTrackedSubject(trackedId: string): Promise<void> {
+    return call<void>(`/v1/ops/tracking/${trackedId}`, { method: 'DELETE' });
+  },
+
+  schedules(): Promise<TrackingSchedule[]> {
+    return call<TrackingSchedule[]>('/v1/ops/tracking/schedules');
+  },
+
+  createSchedule(input: {
+    trackedId: string;
+    intervalSeconds: number;
+    startsAt?: string;
+    endsAt?: string;
+    accuracyMeters?: number;
+    notifyOnFix: boolean;
+    channelId?: string;
+  }): Promise<TrackingSchedule> {
+    return call<TrackingSchedule>('/v1/ops/tracking/schedules', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchSchedule(scheduleId: string, patch: { enabled: boolean }): Promise<TrackingSchedule> {
+    return call<TrackingSchedule>(`/v1/ops/tracking/schedules/${scheduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteSchedule(scheduleId: string): Promise<void> {
+    return call<void>(`/v1/ops/tracking/schedules/${scheduleId}`, { method: 'DELETE' });
+  },
+
+  runSchedule(scheduleId: string): Promise<TrackingRun> {
+    return call<TrackingRun>(`/v1/ops/tracking/schedules/${scheduleId}/run`, { method: 'POST' });
+  },
+
+  scheduleRuns(scheduleId: string, limit = 50): Promise<TrackingRun[]> {
+    return call<TrackingRun[]>(`/v1/ops/tracking/schedules/${scheduleId}/runs?limit=${limit}`);
+  },
+
+  channels(): Promise<NotificationChannel[]> {
+    return call<NotificationChannel[]>('/v1/ops/tracking/channels');
+  },
+
+  createChannel(input: {
+    name: string;
+    type: string;
+    url: string;
+    enabled: boolean;
+  }): Promise<CreatedChannel> {
+    return call<CreatedChannel>('/v1/ops/tracking/channels', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchChannel(channelId: string, patch: { enabled: boolean }): Promise<NotificationChannel> {
+    return call<NotificationChannel>(`/v1/ops/tracking/channels/${channelId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteChannel(channelId: string): Promise<void> {
+    return call<void>(`/v1/ops/tracking/channels/${channelId}`, { method: 'DELETE' });
   },
 };
 

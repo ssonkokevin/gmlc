@@ -1665,3 +1665,74 @@ a.button {
   word-break: break-all;
   font-size: 13px;
 }
+
+/* ---------- tracking ---------- */
+.map-block {
+  margin: 4px 0 16px;
+}
+
+.map-frame {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface-sunken);
+  padding: 8px;
+}
+
+.map-frame .empty {
+  padding: 28px 12px;
+  margin: 0;
+}
+
+.trail-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.map-plot {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.map-grid {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+}
+
+.trail-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.trail-uncertainty {
+  fill: none;
+  stroke: var(--info);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.trail-point {
+  fill: var(--accent-dark);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.trail-point.latest {
+  fill: var(--bad);
+}
+
+.heat-cell {
+  fill: var(--accent);
+  stroke: none;
+}
+
+.swatch-ring {
+  background: transparent;
+  border: 1px dashed var(--info);
+}

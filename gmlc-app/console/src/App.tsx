@@ -6,6 +6,7 @@ import { Locate } from './pages/Locate';
 import { Monitoring } from './pages/Monitoring';
 import { Reports } from './pages/Reports';
 import { SignIn } from './pages/SignIn';
+import { Tracking } from './pages/Tracking';
 import type { RangeKey, Session } from './types';
 
 type RouteKey =
@@ -71,17 +72,9 @@ function routeFromHash(): RouteKey {
   return (ROUTE_KEYS as string[]).includes(hash) ? (hash as RouteKey) : 'dashboard';
 }
 
-type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports' | 'geofencing'>;
+type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports' | 'geofencing' | 'tracking'>;
 
 const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
-  tracking: {
-    phase: 'phase C5',
-    lines: [
-      'Follow one consenting subscriber for a bounded period, under a purpose the subscriber agreed to.',
-      'Push notifications to client endpoints when a tracked target moves.',
-      'Every point still carries its method, uncertainty and age.',
-    ],
-  },
   configuration: {
     phase: 'phase C6',
     lines: [
@@ -310,9 +303,9 @@ export function App() {
                   Peer state comes from exchanges the gateway attempted. Silence is IDLE, never
                   evidence that a peer is healthy.
                 </p>
-                <p className="note">Console build: phase C4. Dashboard, Location Request,
-                  Monitoring, Reports and Geofencing are live; Tracking and Administration
-                  screens arrive in later phases.</p>
+                <p className="note">Console build: phase C5. Dashboard, Location Request,
+                  Monitoring, Reports, Geofencing and Tracking are live; Administration
+                  screens arrive in a later phase.</p>
               </div>
             </details>
 
@@ -362,6 +355,8 @@ export function App() {
             <Reports session={session} onExpired={expired} />
           ) : route === 'geofencing' ? (
             <Geofencing session={session} onExpired={expired} />
+          ) : route === 'tracking' ? (
+            <Tracking session={session} onExpired={expired} />
           ) : (
             <ComingSoon route={route} />
           )}

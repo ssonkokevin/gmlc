@@ -581,3 +581,103 @@ export interface CreatedSubscription {
   secret: string;
   secretNotice: string;
 }
+
+export interface TrackingFix {
+  requestId: string;
+  resultId: string;
+  method: string;
+  methodsAttempted: string[];
+  shape?: string;
+  latitude?: number;
+  longitude?: number;
+  uncertaintyM?: number;
+  confidence?: number;
+  ageSeconds?: number;
+  accuracyRequestedM?: number;
+  accuracyFulfilled?: boolean;
+  servingCell?: string;
+  engine?: string;
+  positioningNode?: string;
+  producedAt?: string;
+}
+
+export interface TrackedSubject {
+  trackedId: string;
+  clientId: string;
+  clientName: string;
+  subjectLabel: string;
+  purpose: string;
+  enabled: boolean;
+  fixes: number;
+  lastFix?: TrackingFix | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackingSummary {
+  total: number;
+  enabled: number;
+  withFix: number;
+  fixes: number;
+  schedules: number;
+  schedulesEnabled: number;
+  runs: number;
+  channels: number;
+  notifierConfigured: boolean;
+  dataSource: string;
+  reporting: Record<string, Feature>;
+}
+
+export interface TrackingSchedule {
+  scheduleId: string;
+  trackedId: string;
+  tenantId: number;
+  clientId: string;
+  clientName: string;
+  subjectLabel: string;
+  purpose: string;
+  intervalSeconds: number;
+  startsAt: string;
+  endsAt?: string;
+  accuracyM?: number;
+  notifyOnFix: boolean;
+  channelId?: string;
+  channelName?: string;
+  enabled: boolean;
+  nextRunAt: string;
+  lastRunAt?: string;
+  lastState?: string;
+  lastError?: string;
+  runs: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackingRun {
+  runId: number;
+  scheduleId: string;
+  trigger: 'SCHEDULE' | 'MANUAL' | string;
+  state: 'LOCATED' | 'NO_FIX' | 'SKIPPED' | 'FAILED' | string;
+  requestId?: string;
+  errorCode?: string;
+  notifyState: 'NONE' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED' | string;
+  notifyDetail?: string;
+  occurredAt: string;
+}
+
+export interface NotificationChannel {
+  channelId: string;
+  name: string;
+  type: string;
+  url: string;
+  enabled: boolean;
+  schedules: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatedChannel {
+  channel: NotificationChannel;
+  secret: string;
+  secretNotice: string;
+}

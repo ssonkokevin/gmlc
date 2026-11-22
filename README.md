@@ -43,7 +43,7 @@ The split is recorded with its reasoning in the core repository under
 | Tracking roster: consented subjects, stored-result trails, client last-known | **Built and tested** (phase C5a) |
 | Automated tracking schedules: window, interval floor, run log, manual run | **Built and tested** (phase C5b) |
 | Notifier channels: sealed signing secrets, signed WEBHOOK delivery only | **Built and tested** (phase C5b); EMAIL, TELEGRAM and SLACK answer `NOTIFIER_NOT_AVAILABLE` |
-| Tracking console screen | Not yet (phase C5c) |
+| Console Tracking screen: subjects, stored-result trails, schedules, channels | **Built and tested** (phase C5c) |
 | Console Administration (configuration, four-eyes) | Not yet (phase C6) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
@@ -315,8 +315,8 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI is phase C4 plus the tracking API of phases C5a
-and C5b; the tracking screen, OIDC and scheduled reports are not built yet. A
+Honest limits: the console UI covers phases C1 to C5; OIDC and scheduled
+reports are not built yet. A
 tracked subject is a roster row over stored results, not a live network feed,
 and a schedule places governed requests on a timer rather than subscribing to
 the network. Those arrive with their own phases and are not claimed here. Peer
@@ -324,7 +324,7 @@ the network. Those arrive with their own phases and are not claimed here. Peer
 peer reports `IDLE`, never a health claim.
 
 **Console UI (phase C1d shell, phase C2 Location Request, phase C3 Monitoring
-and Reports, phase C4 Geofencing).** `/console/` serves
+and Reports, phase C4 Geofencing, phase C5 Tracking).** `/console/` serves
 the operator console: a React
 19 + TypeScript bundle built by Vite into
 `gmlc-app/src/main/resources/static/console`. The shell has the sidebar
@@ -527,6 +527,24 @@ re-checked on every read, so a revocation takes effect) or `TRACKING_DISABLED`.
 A found answer carries `dataSource` - `REAL`, `BENCH` or `LAB_SIM` from the
 deployment's environment - beside the full fix envelope.
 
+**Console Tracking (phase C5c).** The screen keeps four tabs. Subjects adds a
+tracked subject (client, purpose, one MSISDN or IMSI) and lists the roster with
+each subject's masked label, purpose, state and latest stored fix. Trail & map
+draws the stored fixes for one subject as markers, a polyline, optional
+uncertainty circles or a density heatmap on a hand-built SVG plan; every point
+is a result the gateway already stored for a governed request, so the panel
+carries the method, uncertainty, confidence and age beside it and the page says
+plainly that there is no live feed. Schedules creates a window and interval
+(the form enforces the 300 s floor client-side; the schema enforces it again),
+and the table runs, pauses, enables, opens the attempt log and deletes each
+schedule. Notification channels creates a channel, shows the signing secret
+once in a panel above the table, and never reads it back; `EMAIL`, `TELEGRAM`
+and `SLACK` are disabled in the type picker rather than selectable. A
+"What this deployment can report" panel renders `GET
+/v1/ops/tracking/summary`'s `reporting` map, so live network tracking (LDR),
+email, Telegram and Slack each say `NOT AVAILABLE` with the gateway's reason.
+The screen is subject to the same CSP as the rest of the console.
+
 **Console Geofencing (phase C4c).** The screen keeps four tabs - Geofences,
 Entering, Leaving and Inside - plus a Webhooks tab. The Geofences tab lists each
 definition with its shape summary (centre and radius, vertex count, axes and
@@ -581,6 +599,11 @@ Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [Geofencing with all four shapes, arms and the honesty panel](docs/location/console-geofencing.png),
 [the entering-event feed](docs/location/console-geofencing-entering.png),
 [webhook subscriptions with their delivery log](docs/location/console-geofencing-webhooks.png),
+[the tracking roster](docs/location/console-tracking.png),
+[a stored-result trail as markers with uncertainty](docs/location/console-tracking-trail.png),
+[the same stored fixes as a density heatmap](docs/location/console-tracking-heatmap.png),
+[schedules with an expanded attempt log](docs/location/console-tracking-schedules.png),
+[notifier channels and the honesty panel](docs/location/console-tracking-channels.png),
 [a screen that is not built yet](docs/location/console-not-built.png).
 
 ## The Le request path
