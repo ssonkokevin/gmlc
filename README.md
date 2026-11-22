@@ -1095,6 +1095,13 @@ cp .env.example .env   # set DB_PASSWORD
 docker compose up -d   # unverified on this host
 ```
 
+The compose file joins the core stack's network (`5g-core-engine_core-net`;
+override `CORE_NETWORK` if the core project is renamed), so a signalling peer
+can be named as `dra:3868`, `custom-mme:3875` or `map-sccp:2905`. Every variable
+it passes is declared in `config.schema.json`; the host-port register and the
+environment reference are in [docs/PORTS.md](docs/PORTS.md), which
+`python tools/check_config.py --write-docs` regenerates.
+
 Or against an existing PostgreSQL:
 
 ```bash

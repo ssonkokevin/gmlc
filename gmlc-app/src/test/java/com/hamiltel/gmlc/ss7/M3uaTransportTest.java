@@ -105,7 +105,7 @@ class M3uaTransportTest {
 
         M3uaProperties unconfigured = new M3uaProperties("", 0, 0, 0, -1, "", 2, 0);
         assertThat(unconfigured.configured()).isFalse();
-        assertThat(unconfigured.port()).isEqualTo(2905);
+        assertThat(unconfigured.port()).isEqualTo(2906);
         assertThat(unconfigured.timeoutMs()).isEqualTo(5000);
         assertThat(unconfigured.routingContextOrNull()).isNull();
     }

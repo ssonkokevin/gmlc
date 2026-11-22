@@ -8,14 +8,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code local-point-code} zero the transport is disabled and every MAP
  * request fails closed.
  *
- * @param host               the STP's M3UA address; blank disables the link
- * @param port               the STP's M3UA port
+ * @param host               the MAP peer's M3UA address; blank disables the link
+ * @param port               the MAP peer's M3UA port; 2906 is the core's
+ *                           MAP-over-TCP listener, the STP's 2905 is SCTP/UDP only
  * @param localPointCode     this gateway's point code on the SS7 network
  * @param remotePointCode    the point code used when a caller supplies none
  * @param routingContext     M3UA routing context, -1 for "the peer has one key"
  * @param localGlobalTitle   this gateway's E.164 number for the calling party;
  *                           blank sends point code and subsystem number only
- * @param networkIndicator   0 international, 2 national (Hamiltel is national)
+ * @param networkIndicator   0 international, 2 national (the operator is national)
  * @param timeoutMs          how long to wait for a peer answer
  */
 @ConfigurationProperties(prefix = "gmlc.m3ua")
@@ -29,7 +30,10 @@ public record M3uaProperties(
         int networkIndicator,
         int timeoutMs) {
 
-    private static final int DEFAULT_PORT = 2905;
+    // 2906 is the core's MAP-over-TCP listener. The STP's 2905 is SCTP/UDP
+    // only, so a TCP default of 2905 would never connect; this matches
+    // GMLC_M3UA_PORT in .env.example and config.schema.json.
+    private static final int DEFAULT_PORT = 2906;
     private static final int DEFAULT_TIMEOUT_MS = 5000;
 
     public M3uaProperties {

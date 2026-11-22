@@ -1,0 +1,1004 @@
+{
+  "$comment": "Single source of truth for the GMLC's environment variables and the host-port register. tools/check_config.py fails when application.yml, docker-compose.yml or .env.example drift from this file, and docs/PORTS.md is generated from it.",
+  "service": "gmlc",
+  "sources": {
+    "code": "gmlc-app/src/main/resources/application.yml",
+    "compose": "docker-compose.yml",
+    "env": ".env.example"
+  },
+  "compose_extra": [
+    "DB_PASSWORD",
+    "POSTGRES_DB",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD"
+  ],
+  "env_extra": [
+    "DB_PASSWORD"
+  ],
+  "variables": [
+    {
+      "name": "GMLC_ADMIN_KEY",
+      "group": "api",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "Operator key for POST /v1/admin/clients; blank disables the admin API"
+    },
+    {
+      "name": "GMLC_DB_PASSWORD",
+      "group": "database",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "Database password (secret)"
+    },
+    {
+      "name": "GMLC_DB_POOL",
+      "group": "database",
+      "type": "integer",
+      "default": "10",
+      "secret": false,
+      "required": false,
+      "clause": "Hikari maximum pool size"
+    },
+    {
+      "name": "GMLC_DB_URL",
+      "group": "database",
+      "type": "string",
+      "default": "jdbc:postgresql://localhost:5432/gmlc",
+      "secret": false,
+      "required": false,
+      "clause": "JDBC URL of the GMLC database"
+    },
+    {
+      "name": "GMLC_DB_USER",
+      "group": "database",
+      "type": "string",
+      "default": "gmlc",
+      "secret": false,
+      "required": false,
+      "clause": "Database role"
+    },
+    {
+      "name": "GMLC_DIAMETER_ORIGIN_HOST",
+      "group": "diameter",
+      "type": "string",
+      "default": "gmlc.local",
+      "secret": false,
+      "required": false,
+      "clause": "Diameter Origin-Host of this GMLC"
+    },
+    {
+      "name": "GMLC_DIAMETER_ORIGIN_REALM",
+      "group": "diameter",
+      "type": "string",
+      "default": "local",
+      "secret": false,
+      "required": false,
+      "clause": "Diameter Origin-Realm of this GMLC"
+    },
+    {
+      "name": "GMLC_DIAMETER_PEER_HOST",
+      "group": "diameter",
+      "type": "string",
+      "default": "",
+      "secret": false,
+      "required": false,
+      "clause": "DRA/HSS/MME address; blank leaves signalling disabled"
+    },
+    {
+      "name": "GMLC_DIAMETER_PEER_PORT",
+      "group": "diameter",
+      "type": "integer",
+      "default": "3868",
+      "secret": false,
+      "required": false,
+      "clause": "Diameter peer port"
+    },
+    {
+      "name": "GMLC_DIAMETER_TIMEOUT_MS",
+      "group": "diameter",
+      "type": "integer",
+      "default": "5000",
+      "secret": false,
+      "required": false,
+      "clause": "Diameter exchange timeout"
+    },
+    {
+      "name": "GMLC_EMERGENCY_OVERRIDE",
+      "group": "location",
+      "type": "boolean",
+      "default": "false",
+      "secret": false,
+      "required": false,
+      "clause": "Allow EMERGENCY requests without stored consent; every use is audited"
+    },
+    {
+      "name": "GMLC_LCS_CLIENT_NAME",
+      "group": "location",
+      "type": "string",
+      "default": "GMLC",
+      "secret": false,
+      "required": false,
+      "clause": "LCS-ClientID the serving network sees"
+    },
+    {
+      "name": "GMLC_LOCATION_TRANSPORT",
+      "group": "location",
+      "type": "enum",
+      "default": "DIAMETER",
+      "secret": false,
+      "required": false,
+      "clause": "Le interface transport: DIAMETER (SLh/SLg) or MAP (SS7)",
+      "values": [
+        "DIAMETER",
+        "MAP"
+      ]
+    },
+    {
+      "name": "GMLC_M3UA_HOST",
+      "group": "map",
+      "type": "string",
+      "default": "",
+      "secret": false,
+      "required": false,
+      "clause": "STP/MAP peer address; blank leaves MAP disabled"
+    },
+    {
+      "name": "GMLC_M3UA_LOCAL_GT",
+      "group": "map",
+      "type": "string",
+      "default": "",
+      "secret": false,
+      "required": false,
+      "clause": "Local global title"
+    },
+    {
+      "name": "GMLC_M3UA_LOCAL_PC",
+      "group": "map",
+      "type": "integer",
+      "default": "0",
+      "secret": false,
+      "required": false,
+      "clause": "Local point code; 0 leaves the link disabled"
+    },
+    {
+      "name": "GMLC_M3UA_NI",
+      "group": "map",
+      "type": "enum",
+      "default": "2",
+      "secret": false,
+      "required": false,
+      "clause": "Network indicator",
+      "values": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "GMLC_M3UA_PORT",
+      "group": "map",
+      "type": "integer",
+      "default": "2906",
+      "secret": false,
+      "required": false,
+      "clause": "M3UA/TCP peer port; 2906 is the lab core's map-sccp listener"
+    },
+    {
+      "name": "GMLC_M3UA_REMOTE_PC",
+      "group": "map",
+      "type": "integer",
+      "default": "0",
+      "secret": false,
+      "required": false,
+      "clause": "Remote point code"
+    },
+    {
+      "name": "GMLC_M3UA_ROUTING_CONTEXT",
+      "group": "map",
+      "type": "integer",
+      "default": "-1",
+      "secret": false,
+      "required": false,
+      "clause": "M3UA routing context; -1 means none"
+    },
+    {
+      "name": "GMLC_M3UA_TIMEOUT_MS",
+      "group": "map",
+      "type": "integer",
+      "default": "5000",
+      "secret": false,
+      "required": false,
+      "clause": "M3UA exchange timeout"
+    },
+    {
+      "name": "GMLC_MAP_HLR_PC",
+      "group": "map",
+      "type": "integer",
+      "default": "0",
+      "secret": false,
+      "required": false,
+      "clause": "HLR point code"
+    },
+    {
+      "name": "GMLC_MAP_MLC_NUMBER",
+      "group": "map",
+      "type": "string",
+      "default": "",
+      "secret": false,
+      "required": false,
+      "clause": "E.164 LCS number of this GMLC; blank leaves MAP disabled"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_CELL_GAP",
+      "group": "console",
+      "type": "integer",
+      "default": "1",
+      "secret": false,
+      "required": false,
+      "clause": "Cell-gap threshold"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_ENABLED",
+      "group": "console",
+      "type": "boolean",
+      "default": "true",
+      "secret": false,
+      "required": false,
+      "clause": "Peer/cell alert evaluation"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_ERROR_RATE",
+      "group": "console",
+      "type": "number",
+      "default": "0.25",
+      "secret": false,
+      "required": false,
+      "clause": "Error-rate threshold"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_EVAL_SECONDS",
+      "group": "console",
+      "type": "integer",
+      "default": "60",
+      "secret": false,
+      "required": false,
+      "clause": "Alert evaluation interval"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_MIN_FINISHED",
+      "group": "console",
+      "type": "integer",
+      "default": "10",
+      "secret": false,
+      "required": false,
+      "clause": "Finished requests needed before an error rate is judged"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_PEER_FAILURES",
+      "group": "console",
+      "type": "integer",
+      "default": "3",
+      "secret": false,
+      "required": false,
+      "clause": "Failed exchanges before a peer is DOWN"
+    },
+    {
+      "name": "GMLC_OPS_ALERTS_WINDOW_MINUTES",
+      "group": "console",
+      "type": "integer",
+      "default": "15",
+      "secret": false,
+      "required": false,
+      "clause": "Alert look-back window"
+    },
+    {
+      "name": "GMLC_OPS_ARGON2_ITERATIONS",
+      "group": "console",
+      "type": "integer",
+      "default": "2",
+      "secret": false,
+      "required": false,
+      "clause": "Argon2id iteration count"
+    },
+    {
+      "name": "GMLC_OPS_ARGON2_MEMORY_KIB",
+      "group": "console",
+      "type": "integer",
+      "default": "19456",
+      "secret": false,
+      "required": false,
+      "clause": "Argon2id memory cost"
+    },
+    {
+      "name": "GMLC_OPS_ARGON2_PARALLELISM",
+      "group": "console",
+      "type": "integer",
+      "default": "1",
+      "secret": false,
+      "required": false,
+      "clause": "Argon2id parallelism"
+    },
+    {
+      "name": "GMLC_OPS_BOOTSTRAP_PASSWORD",
+      "group": "console",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "First administrator password (secret); blank leaves the console closed"
+    },
+    {
+      "name": "GMLC_OPS_BOOTSTRAP_TOTP_SECRET",
+      "group": "console",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "First administrator TOTP seed (secret)"
+    },
+    {
+      "name": "GMLC_OPS_BOOTSTRAP_USER",
+      "group": "console",
+      "type": "string",
+      "default": "",
+      "secret": false,
+      "required": false,
+      "clause": "First administrator username; blank leaves the console closed"
+    },
+    {
+      "name": "GMLC_OPS_BREAK_GLASS_CODE_HASH",
+      "group": "console",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "SHA-256 hex of the break-glass code; blank disables it"
+    },
+    {
+      "name": "GMLC_OPS_COOKIE_SECURE",
+      "group": "console",
+      "type": "boolean",
+      "default": "true",
+      "secret": false,
+      "required": false,
+      "clause": "Secure session cookie; false only on a plain-HTTP lab"
+    },
+    {
+      "name": "GMLC_OPS_ENVIRONMENT",
+      "group": "console",
+      "type": "enum",
+      "default": "LAB",
+      "secret": false,
+      "required": false,
+      "clause": "LAB, BENCH or PRODUCTION; labels every console figure",
+      "values": [
+        "LAB",
+        "BENCH",
+        "PRODUCTION"
+      ]
+    },
+    {
+      "name": "GMLC_OPS_LOCKOUT_MINUTES",
+      "group": "console",
+      "type": "integer",
+      "default": "15",
+      "secret": false,
+      "required": false,
+      "clause": "Lockout duration"
+    },
+    {
+      "name": "GMLC_OPS_LOCKOUT_THRESHOLD",
+      "group": "console",
+      "type": "integer",
+      "default": "5",
+      "secret": false,
+      "required": false,
+      "clause": "Failed sign-ins before lockout"
+    },
+    {
+      "name": "GMLC_OPS_SESSION_ABSOLUTE_HOURS",
+      "group": "console",
+      "type": "integer",
+      "default": "8",
+      "secret": false,
+      "required": false,
+      "clause": "Console absolute session lifetime"
+    },
+    {
+      "name": "GMLC_OPS_SESSION_IDLE_MINUTES",
+      "group": "console",
+      "type": "integer",
+      "default": "15",
+      "secret": false,
+      "required": false,
+      "clause": "Console idle timeout"
+    },
+    {
+      "name": "GMLC_OPS_SLO_P95_MS",
+      "group": "console",
+      "type": "integer",
+      "default": "0",
+      "secret": false,
+      "required": false,
+      "clause": "p95 objective shown beside the measured percentile; 0 means none agreed"
+    },
+    {
+      "name": "GMLC_OPS_TOTP_ISSUER",
+      "group": "console",
+      "type": "string",
+      "default": "GMLC",
+      "secret": false,
+      "required": false,
+      "clause": "Issuer label in the operator's authenticator app"
+    },
+    {
+      "name": "GMLC_OPS_TOTP_PERIOD_SECONDS",
+      "group": "console",
+      "type": "integer",
+      "default": "30",
+      "secret": false,
+      "required": false,
+      "clause": "TOTP period"
+    },
+    {
+      "name": "GMLC_PORT",
+      "group": "http",
+      "type": "integer",
+      "default": "8082",
+      "secret": false,
+      "required": false,
+      "clause": "Spring Boot server.port"
+    },
+    {
+      "name": "GMLC_SUBJECT_PEPPER",
+      "group": "location",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "HMAC key for subscriber pseudonyms; blank falls back to unkeyed SHA-256"
+    },
+    {
+      "name": "GMLC_TRACKING_BATCH_SIZE",
+      "group": "tracking",
+      "type": "integer",
+      "default": "20",
+      "secret": false,
+      "required": false,
+      "clause": "Trails read per tick"
+    },
+    {
+      "name": "GMLC_TRACKING_FLUSH_SECONDS",
+      "group": "tracking",
+      "type": "integer",
+      "default": "30",
+      "secret": false,
+      "required": false,
+      "clause": "Trail flush interval"
+    },
+    {
+      "name": "GMLC_TRACKING_INITIAL_DELAY_SECONDS",
+      "group": "tracking",
+      "type": "integer",
+      "default": "45",
+      "secret": false,
+      "required": false,
+      "clause": "Tracking runner start delay"
+    },
+    {
+      "name": "GMLC_TRACKING_MIN_INTERVAL_SECONDS",
+      "group": "tracking",
+      "type": "integer",
+      "default": "300",
+      "secret": false,
+      "required": false,
+      "clause": "Minimum schedule interval (no licence metering is wired)"
+    },
+    {
+      "name": "GMLC_TRACKING_NOTIFIER_KEY",
+      "group": "tracking",
+      "type": "string",
+      "default": "",
+      "secret": true,
+      "required": false,
+      "clause": "Key that seals channel signing secrets (secret); blank refuses channel creation"
+    },
+    {
+      "name": "GMLC_TRACKING_SCHEDULES_ENABLED",
+      "group": "tracking",
+      "type": "boolean",
+      "default": "true",
+      "secret": false,
+      "required": false,
+      "clause": "Automated tracking schedules"
+    },
+    {
+      "name": "GMLC_TRACKING_TIMEOUT_SECONDS",
+      "group": "tracking",
+      "type": "integer",
+      "default": "10",
+      "secret": false,
+      "required": false,
+      "clause": "Tracking request timeout"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_BATCH_SIZE",
+      "group": "webhooks",
+      "type": "integer",
+      "default": "50",
+      "secret": false,
+      "required": false,
+      "clause": "Webhooks per flush"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_ENABLED",
+      "group": "webhooks",
+      "type": "boolean",
+      "default": "true",
+      "secret": false,
+      "required": false,
+      "clause": "Outbound geofence webhook delivery"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_FLUSH_SECONDS",
+      "group": "webhooks",
+      "type": "integer",
+      "default": "10",
+      "secret": false,
+      "required": false,
+      "clause": "Webhook flush interval"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_INITIAL_DELAY_SECONDS",
+      "group": "webhooks",
+      "type": "integer",
+      "default": "15",
+      "secret": false,
+      "required": false,
+      "clause": "Webhook runner start delay"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_MAX_ATTEMPTS",
+      "group": "webhooks",
+      "type": "integer",
+      "default": "5",
+      "secret": false,
+      "required": false,
+      "clause": "Webhook attempts before giving up"
+    },
+    {
+      "name": "GMLC_WEBHOOKS_TIMEOUT_SECONDS",
+      "group": "webhooks",
+      "type": "integer",
+      "default": "5",
+      "secret": false,
+      "required": false,
+      "clause": "Webhook request timeout"
+    }
+  ],
+  "ports": [
+    {
+      "port": 5433,
+      "container_port": 5432,
+      "protocol": "tcp",
+      "service": "postgres",
+      "owner": "gmlc",
+      "source": "docker-compose.yml"
+    },
+    {
+      "port": 8082,
+      "container_port": 8082,
+      "protocol": "tcp",
+      "service": "gmlc",
+      "owner": "gmlc",
+      "source": "docker-compose.yml"
+    },
+    {
+      "port": 3306,
+      "container_port": 3306,
+      "protocol": "tcp",
+      "service": "db",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3307,
+      "container_port": 3306,
+      "protocol": "tcp",
+      "service": "hssdb",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 6379,
+      "container_port": 6379,
+      "protocol": "tcp",
+      "service": "redis",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8000,
+      "container_port": 8000,
+      "protocol": "tcp",
+      "service": "custom-nrf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2905,
+      "container_port": 2905,
+      "protocol": "sctp",
+      "service": "osmo-stp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2905,
+      "container_port": 2905,
+      "protocol": "udp",
+      "service": "osmo-stp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3868,
+      "container_port": 3868,
+      "protocol": "tcp",
+      "service": "dra",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3868,
+      "container_port": 3868,
+      "protocol": "sctp",
+      "service": "dra",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3880,
+      "container_port": 3868,
+      "protocol": "tcp",
+      "service": "diameter-s6a-cx",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3880,
+      "container_port": 3868,
+      "protocol": "sctp",
+      "service": "diameter-s6a-cx",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2906,
+      "container_port": 2905,
+      "protocol": "tcp",
+      "service": "map-sccp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2906,
+      "container_port": 2905,
+      "protocol": "udp",
+      "service": "map-sccp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2907,
+      "container_port": 2906,
+      "protocol": "tcp",
+      "service": "camel",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2907,
+      "container_port": 2906,
+      "protocol": "sctp",
+      "service": "camel",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3870,
+      "container_port": 3869,
+      "protocol": "tcp",
+      "service": "ocs",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3870,
+      "container_port": 3869,
+      "protocol": "sctp",
+      "service": "ocs",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3871,
+      "container_port": 3869,
+      "protocol": "tcp",
+      "service": "scp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2908,
+      "container_port": 2905,
+      "protocol": "sctp",
+      "service": "scp",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8090,
+      "container_port": 8090,
+      "protocol": "tcp",
+      "service": "hss",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8006,
+      "container_port": 8006,
+      "protocol": "tcp",
+      "service": "custom-udr",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8007,
+      "container_port": 8080,
+      "protocol": "tcp",
+      "service": "custom-udm",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8004,
+      "container_port": 7777,
+      "protocol": "tcp",
+      "service": "custom-pcf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3873,
+      "container_port": 3870,
+      "protocol": "tcp",
+      "service": "custom-pcf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3874,
+      "container_port": 3871,
+      "protocol": "tcp",
+      "service": "custom-pcf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8002,
+      "container_port": 7777,
+      "protocol": "tcp",
+      "service": "custom-smf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8806,
+      "container_port": 8805,
+      "protocol": "udp",
+      "service": "custom-smf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 2152,
+      "container_port": 2152,
+      "protocol": "udp",
+      "service": "custom-upf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8805,
+      "container_port": 8805,
+      "protocol": "udp",
+      "service": "custom-upf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 42050,
+      "container_port": 42050,
+      "protocol": "tcp",
+      "service": "custom-upf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8081,
+      "container_port": 8081,
+      "protocol": "tcp",
+      "service": "oam",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3001,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "oam-frontend",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 9090,
+      "container_port": 9090,
+      "protocol": "tcp",
+      "service": "prometheus",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3000,
+      "container_port": 3000,
+      "protocol": "tcp",
+      "service": "grafana",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 27017,
+      "container_port": 27017,
+      "protocol": "tcp",
+      "service": "mongo",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18000,
+      "container_port": 8000,
+      "protocol": "tcp",
+      "service": "nrf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18080,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "amf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 38413,
+      "container_port": 38412,
+      "protocol": "sctp",
+      "service": "amf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18081,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "smf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18085,
+      "container_port": 8805,
+      "protocol": "udp",
+      "service": "smf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18152,
+      "container_port": 2152,
+      "protocol": "udp",
+      "service": "upf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18086,
+      "container_port": 8805,
+      "protocol": "udp",
+      "service": "upf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18082,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "ausf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18083,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "udm",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18084,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "pcf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 18087,
+      "container_port": 80,
+      "protocol": "tcp",
+      "service": "chf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8001,
+      "container_port": 8001,
+      "protocol": "tcp",
+      "service": "custom-amf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8003,
+      "container_port": 8003,
+      "protocol": "tcp",
+      "service": "custom-lmf",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 3875,
+      "container_port": 3875,
+      "protocol": "tcp",
+      "service": "custom-mme",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 8075,
+      "container_port": 8075,
+      "protocol": "tcp",
+      "service": "custom-mme",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    },
+    {
+      "port": 9082,
+      "container_port": 9082,
+      "protocol": "tcp",
+      "service": "esmlc-sim",
+      "owner": "core",
+      "source": "../5g-core-engine/docker-compose.yml"
+    }
+  ],
+  "compose_overrides": [
+    "GMLC_DB_URL"
+  ]
+}

@@ -35,6 +35,12 @@ jobs:
       - name: Console typecheck and build
         run: cd gmlc-app/console && npm ci && npm run build
 
+      # application.yml, docker-compose.yml and .env.example against
+      # config.schema.json; docs/PORTS.md must be the generated text. The core
+      # compose half needs ../5g-core-engine and is skipped here.
+      - name: Configuration and ports match the schema
+        run: python3 tools/check_config.py
+
       # The Python half of fixtures/constants.json and the Python decode of
       # fixtures/golden/slg.json need the core repository, which is not checked
       # out here. `make verify` enforces them in the combined workspace;

@@ -277,15 +277,15 @@ in `mme/src/slg.py` cannot drift. `slg.subscriber` refuses an AVP above 8 octets
 `fixtures/golden/slg.json` carries a 6-octet TBCD MSISDN and both codecs decode
 it to `256700000001`.
 
-### SIG-5 (unchecked) OPEN — M3UA/TCP default port cannot reach a lab peer
+### SIG-5 (unit-tested, compose unverified) FIXED — M3UA/TCP default reaches the lab MAP listener
 
-`application.yml:56-64` defaults `gmlc.m3ua.port` to 2905 and the transport is
-M3UA over TCP (`TcpM3uaTransport`; the JVM has no SCTP provider).
-`5g-core-engine/docker-compose.yml:177-178` publishes 2905 as SCTP and UDP only;
-the TCP MAP listener is `map-sccp` at host 2906 → container 2905
-(`:274-275`). The default 2905/TCP therefore reaches nothing, and the only TCP
-MAP peer is the SMS-only server from SIG-2. Owned by the configuration boundary:
-the port register and compose wiring, with an interop test, close it there.
+`application.yml` defaulted `gmlc.m3ua.port` to 2905/TCP, but the core publishes
+2905 as SCTP/UDP (osmo-stp) and its TCP MAP listener at host 2906 → container
+2905 (map-sccp). The default is now 2906, the reachable port, and the port
+register in `config.schema.json` records both entries so the distinction cannot
+disappear. Inside the compose network the same listener is `map-sccp:2905`.
+The lab peer still answers only the SMS operations (SIG-2 body); a compose
+interop test remains unchecked (CFG-4).
 
 ### SIG-6 (unchecked) TCAP tags are labelled differently
 
@@ -366,67 +366,59 @@ which is unchanged and not claimed.
 
 ## 4. Configuration and ports
 
-Source of truth (planned): one `config.schema.json` per service, validated
-against compose, `.env.example`, docs and code. No schema exists yet. Counts:
+Source of truth: `config.schema.json`. It declares all 61 environment variables
+the gateway reads and a 52-entry host-port register covering both stacks.
+`tools/check_config.py` fails if `application.yml`, `docker-compose.yml`,
+`.env.example` or the core compose disagree, and fails if `docs/PORTS.md` is not
+the text generated from the schema.
 
-- `application.yml` reads 61 distinct `${ENV}` names.
-- `docker-compose.yml` sets 16 environment entries.
-- `.env.example` lists 18 keys.
+### CFG-1 (unit-tested) FIXED — compose can configure the console and signalling
 
-### CFG-1 (unit-tested) Compose cannot configure the console or signalling
+`docker-compose.yml` previously set 16 environment entries and omitted whole
+groups that the code reads. It now passes all 61, grouped and commented. Secrets
+are pass-through only (`${GMLC_...:-}`); no default credential exists, so a
+blank bootstrap account or notifier key leaves its feature closed rather than
+enabling it with a guessable value. `.env.example` documents the same set
+without values for secrets. The checker enforces both directions: a variable in
+code and not in compose fails, and a compose key not in the schema fails.
 
-`docker-compose.yml` sets `GMLC_PORT`, the five `GMLC_DIAMETER_*`, and database
-values. It omits entire groups that the code reads:
+### CFG-2 (unit-tested, Docker unverified) FIXED — the gateway joins the core network
 
-- `GMLC_LOCATION_TRANSPORT`
-- all `GMLC_M3UA_*` (host, port, point codes, routing context, GT, NI, timeout)
-- all `GMLC_MAP_*` (MLC number, HLR point code)
-- all `GMLC_OPS_*` (environment, cookie, sessions, TOTP, Argon2, bootstrap
-  account, break-glass hash, alert thresholds)
-- all `GMLC_WEBHOOKS_*`
-- most `GMLC_TRACKING_*`
+`docker-compose.yml` now attaches the `gmlc` service to an external network
+named `${CORE_NETWORK:-5g-core-engine_core-net}`, which is the core compose's
+`core-net`. A peer is then named by service (`dra:3868`, `custom-mme:3875`,
+`map-sccp:2905`) instead of a host port. No signalling port is published by the
+gateway because it only dials out. This is a file-level change: Docker is not
+installed here, so it has not been started (CFG-4).
 
-Consequence: `docker compose up` starts a gateway with the console closed (no
-bootstrap account) and MAP disabled (empty host/MLC number), and no way to set
-either through compose. `.env.example` repeats the gap. Phase 2.7 adds a schema,
-generates `docs/PORTS.md`, and fails CI when the three files disagree.
+### CFG-3 (unit-tested) FIXED — one port register, generated
 
-### CFG-2 (unit-tested) GMLC compose does not join the core network
+The 52 entries in `config.schema.json` (2 gateway, 50 core) are rendered into
+`docs/PORTS.md`. The checker compares the register against both compose files in
+both directions and rejects a host port/protocol claimed by two services.
+Relevant entries:
 
-`docker-compose.yml` defines two services, `postgres` and `gmlc`, with no
-network shared with `5g-core-engine`. It publishes 8082 (HTTP) and 5433
-(Postgres) and no signalling port. The committed compose cannot exercise a
-GMLC→STP/DRA/MME path at all; integration is manual. **lab-simulated** only.
-
-### CFG-3 (unit-tested) Port register and collisions
-
-| Port | Service | Protocol | Source |
+| Port | Service | Protocol | Meaning |
 | --- | --- | --- | --- |
-| 8082 | GMLC HTTP | TCP | `gmlc/docker-compose.yml:44` |
-| 5433 → 5432 | GMLC Postgres | TCP | `gmlc/docker-compose.yml:13` |
-| 2905 | osmo-stp | SCTP, UDP | `5g-core-engine/docker-compose.yml:177-178` |
-| 2906 → 2905 | map-sccp | TCP, UDP | `:274-275` |
-| 3868 | DRA | TCP, SCTP | `:218-219` |
-| 3880 → 3868 | diameter-s6a-cx | TCP, SCTP | `:247-248` |
-| 3875 | custom-mme SLg | TCP | `:1056` |
-| 8090 | HSS HTTP | TCP | `:414` |
-| 8075 | MME HTTP | TCP | `:1057` |
+| 8082 | gmlc | TCP | console and Le API |
+| 5433 → 5432 | postgres | TCP | gateway database |
+| 2906 → 2905 | map-sccp | TCP, UDP | lab core TCP MAP listener |
+| 2905 | osmo-stp | SCTP, UDP | STP; no TCP listener |
+| 3868 | dra | TCP, SCTP | DRA |
+| 3875 | custom-mme | TCP | SLg |
+| 3880 → 3868 | diameter-s6a-cx | TCP, SCTP | S6a/Cx |
 
-Ambiguities:
-
-- The GMLC has one `GMLC_DIAMETER_PEER_PORT` (default 3868). SLh via the DRA is
-  3868; SLg to the MME is 3875. One port cannot reach both. The default reaches
-  the DRA only.
-- `3868` is both the DRA's host port and the HSS container port (published as
-  3880). They are on different containers but the same network name, so a peer
-  configured by port alone is ambiguous without a host.
-- M3UA/TCP 2905 is absent (see SIG-5); the TCP MAP listener is 2906.
+The earlier ambiguity — one `GMLC_DIAMETER_PEER_PORT` for both SLh and SLg — is
+unchanged in the code but no longer silent: the register shows DRA 3868 and MME
+3875, and on the shared network they are distinguishable by service name.
+SIG-5 is closed: `GMLC_M3UA_PORT` now defaults to 2906/TCP, which is served,
+instead of 2905/TCP, which is not.
 
 ### CFG-4 (unchecked) Docker artifacts unverified
 
-Docker is not installed on this host. All compose changes and the interop test
-are committed as “unverified build”; they must be run on a Linux host with
-Docker before any `lab-simulated` claim is made.
+Docker is not installed on this host. The compose changes, the external network
+and `docker compose up` are committed as “unverified build”; they must be run on
+a Linux host with Docker before any `lab-simulated` claim is made.
 
 ---
 
@@ -557,6 +549,17 @@ None of these changes a protocol value to match code.
     message structure are unchanged; only the AVP and message framing octets
     moved to the RFC layout, which is what the fixture is meant to pin. No test
     was relaxed to achieve this.
+20. `gmlc.m3ua.port` now defaults to 2906 instead of 2905 (SIG-5). This is a
+    lab default, not a protocol value: 2905/TCP has no listener in the core
+    compose, so the old default could only ever time out. The port register and
+    `docs/PORTS.md` are generated from `config.schema.json`; `docker-compose.yml`
+    and `.env.example` now carry every variable the schema declares, and
+    `make config` (also run by CI) fails on any drift. No secret has a value in
+    either file. The Java fallback in `M3uaProperties.DEFAULT_PORT` was still
+    2905 and contradicted that default; it is now 2906. This changes a test:
+    `M3uaTransportTest` asserted `port()` was 2905 for an unconfigured record,
+    which pinned the unreachable port, so that one assertion now expects 2906.
+    Nothing else in the test was touched.
 
 A note on the fixtures: `SharedConstantsTest` requires every public numeric
 constant in `DiameterDictionary`, `Avp`, `MapLcs` and `Sccp` to be listed. That
@@ -572,7 +575,11 @@ These are not claimed done:
   checks, pinned-commit compose interop (SIG-8). The SLg golden pair is done.
 - Python SLh peer and MAP LCS peer (SIG-2 body, SIG-9).
 - TCAP tag interoperability (SIG-6).
-- Compose and Docker execution on a real host (CFG-4).
+- Compose and Docker execution on a real host (CFG-4). The compose files and
+  `docs/PORTS.md` are checked as text only.
+- A `config.schema.json` for each core service. The GMLC has one; the core still
+  uses its compose header and `.env.example` as its register, so a core-service
+  variable can drift without a gate.
 - `make verify` execution on this Windows host (`make` is not installed); the
   individual commands above were run instead.
 - `tests/test_mme_location.py` and `tests/test_lcsap_codec.py` need
@@ -612,7 +619,12 @@ These are not claimed done:
    `fixtures/golden/slg.json` checked by `GoldenSignallingTest` and
    `tests/test_golden_slg.py`, `knownDivergences` empty. MAP PSL body remains a
    placeholder and is not claimed.
-5. **Config** — add `config.schema.json`, generate `docs/PORTS.md`, fail CI on
-   compose/`.env.example`/code drift, wire the GMLC compose to the core network.
+5. ~~**Config** — add `config.schema.json`, generate `docs/PORTS.md`, fail CI on
+   compose/`.env.example`/code drift, wire the GMLC compose to the core network.~~
+   Done in the config-boundary commit: 61 variables and 52 ports in
+   `config.schema.json`, `tools/check_config.py` in `make verify` and CI,
+   `docs/PORTS.md` generated, compose passes every variable and joins
+   `5g-core-engine_core-net`, SIG-5 default corrected to 2906. Docker itself is
+   still unverified on this host.
 6. **Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures
    and tests; fail CI on gaps.

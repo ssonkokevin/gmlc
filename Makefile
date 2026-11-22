@@ -9,11 +9,11 @@ SHELL := /bin/sh
 PYTHON ?= python3
 MVN ?= mvn
 
-.PHONY: verify verify-ci backend frontend console constants golden
+.PHONY: verify verify-ci backend frontend console constants config golden
 
-verify: backend frontend console constants golden
+verify: backend frontend console constants config golden
 
-verify-ci: backend frontend console
+verify-ci: backend frontend console config
 
 backend:
 	cd gmlc-app && $(MVN) -B test
@@ -26,6 +26,13 @@ console:
 
 constants:
 	$(PYTHON) tools/check_constants.py --core-root ../5g-core-engine
+
+# Checks application.yml, docker-compose.yml and .env.example against
+# config.schema.json, verifies the port register against both composes, and
+# fails if docs/PORTS.md is stale. The core compose half is skipped when the
+# core repository is not present.
+config:
+	$(PYTHON) tools/check_config.py --core-root ../5g-core-engine
 
 # Decodes and re-encodes fixtures/golden/slg.json with the Python codec; the Java
 # half runs inside `backend` (GoldenSignallingTest).

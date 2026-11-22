@@ -51,11 +51,12 @@ gmlc:
   # M3UA towards the STP for the MAP face (2G/3G location). Point codes belong
   # to the operator, so none is committed: local-point-code 0 leaves the link
   # disabled and every MAP request fails closed. M3UA normally runs over SCTP;
-  # this host has no SCTP provider for the JVM, so the transport is M3UA/TCP
-  # and the lab gateway must accept that (see README).
+  # this host has no SCTP provider for the JVM, so the transport is M3UA/TCP.
+  # The lab core publishes its MAP TCP listener at host 2906 (map-sccp); the
+  # STP's 2905 is SCTP/UDP only, so 2906 is the reachable default.
   m3ua:
     host: ${GMLC_M3UA_HOST:}
-    port: ${GMLC_M3UA_PORT:2905}
+    port: ${GMLC_M3UA_PORT:2906}
     local-point-code: ${GMLC_M3UA_LOCAL_PC:0}
     remote-point-code: ${GMLC_M3UA_REMOTE_PC:0}
     routing-context: ${GMLC_M3UA_ROUTING_CONTEXT:-1}
