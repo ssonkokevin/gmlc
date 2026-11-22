@@ -31,6 +31,7 @@ public class OpsSessionService {
 
     private final OpsUserRepository users;
     private final OpsSessionRepository sessions;
+    private final OpsBreakGlassRepository breakGlass;
     private final Argon2PasswordHasher hasher;
     private final OpsProperties properties;
     private final GmlcProperties gmlc;
@@ -39,10 +40,11 @@ public class OpsSessionService {
     private final Base64.Encoder urlSafe = Base64.getUrlEncoder().withoutPadding();
 
     public OpsSessionService(OpsUserRepository users, OpsSessionRepository sessions,
-                             Argon2PasswordHasher hasher, OpsProperties properties,
-                             GmlcProperties gmlc, AuditTrail audit) {
+                             OpsBreakGlassRepository breakGlass, Argon2PasswordHasher hasher,
+                             OpsProperties properties, GmlcProperties gmlc, AuditTrail audit) {
         this.users = users;
         this.sessions = sessions;
+        this.breakGlass = breakGlass;
         this.hasher = hasher;
         this.properties = properties;
         this.gmlc = gmlc;
@@ -133,7 +135,16 @@ public class OpsSessionService {
         Instant idleExpires = earlier(now.plus(Duration.ofMinutes(properties.sessionIdleMinutes())),
                 session.absoluteExpiresAt());
         sessions.touch(session.sessionId(), idleExpires);
-        return Optional.of(new OpsContext(user.get(), session.sessionId(), session.csrfToken()));
+
+        // An unexpired emergency grant widens permission checks on this
+        // session only; the assigned role is left untouched. Clearing the
+        // deployment hash switches elevation off immediately.
+        Optional<OpsBreakGlassRepository.GrantRow> grant =
+                OpsBreakGlassService.configuredHash(properties.breakGlassCodeHash())
+                        ? breakGlass.activeForSession(session.tenantId(), session.sessionId(), now)
+                        : Optional.empty();
+        return Optional.of(new OpsContext(user.get(), session.sessionId(), session.csrfToken(),
+                grant.isPresent(), grant.map(OpsBreakGlassRepository.GrantRow::expiresAt).orElse(null)));
     }
 
     public void logout(OpsContext context, String remoteAddr) {
@@ -150,6 +161,20 @@ public class OpsSessionService {
                 Map.of("targetUser", targetUserId.toString(), "reason", reason,
                         "sessionsEnded", ended));
         return ended;
+    }
+
+    /** Ends one named session of this tenant, naming the operator who asked. */
+    public void revokeOne(long tenantId, UUID actorUserId, UUID sessionId) {
+        OpsSession target = sessions.find(sessionId)
+                .filter(session -> session.tenantId() == tenantId)
+                .orElseThrow(() -> new OpsNotFoundException("session"));
+        int ended = sessions.revokeActive(sessionId);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("targetUser", target.userId().toString());
+        detail.put("reason", "ADMIN_SIGN_OUT");
+        detail.put("sessionsEnded", ended);
+        audit.recordOperator(tenantId, actorUserId, "OPS_SESSION_REVOKED",
+                AuditTrail.Outcome.ALLOWED, detail);
     }
 
     public static String sha256(String value) {

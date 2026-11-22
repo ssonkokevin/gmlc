@@ -19,9 +19,10 @@ import java.util.Locale;
  */
 public final class Totp {
 
+    public static final int DIGITS = 6;
+    public static final int STEP_SECONDS = 30;
+
     private static final char[] ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".toCharArray();
-    private static final int DIGITS = 6;
-    private static final int STEP_SECONDS = 30;
 
     private Totp() {
     }

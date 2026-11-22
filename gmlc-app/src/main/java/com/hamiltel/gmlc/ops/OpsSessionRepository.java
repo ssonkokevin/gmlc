@@ -78,6 +78,47 @@ public class OpsSessionRepository {
                 + " WHERE session_id = ? AND revoked_at IS NULL", sessionId);
     }
 
+    /** @return 1 when a live session was ended, 0 when it was already gone */
+    public int revokeActive(UUID sessionId) {
+        return jdbc.update("UPDATE ops_session SET revoked_at = now()"
+                + " WHERE session_id = ? AND revoked_at IS NULL", sessionId);
+    }
+
+    /** Sessions across every operator of a tenant that are still usable now. */
+    public List<ActiveSessionRow> listActive(long tenantId, Instant now) {
+        return jdbc.query("""
+                SELECT s.session_id, s.user_id, s.remote_addr, s.created_at, s.last_seen_at,
+                       s.absolute_expires_at, u.username, u.display_name, u.role
+                  FROM ops_session s
+                  JOIN ops_user u ON u.user_id = s.user_id
+                 WHERE s.tenant_id = ? AND s.revoked_at IS NULL
+                   AND s.idle_expires_at > ? AND s.absolute_expires_at > ?
+                 ORDER BY s.last_seen_at DESC
+                """, (rs, rowNum) -> new ActiveSessionRow(
+                        rs.getObject("session_id", UUID.class),
+                        rs.getObject("user_id", UUID.class),
+                        rs.getString("username"),
+                        rs.getString("display_name"),
+                        rs.getString("role"),
+                        rs.getString("remote_addr"),
+                        instant(rs, "created_at"),
+                        instant(rs, "last_seen_at"),
+                        instant(rs, "absolute_expires_at")),
+                tenantId, Timestamp.from(now), Timestamp.from(now));
+    }
+
+    public record ActiveSessionRow(
+            UUID sessionId,
+            UUID userId,
+            String username,
+            String displayName,
+            String role,
+            String remoteAddr,
+            Instant createdAt,
+            Instant lastSeenAt,
+            Instant expiresAt) {
+    }
+
     /** @return the number of sessions ended */
     public int revokeAllForUser(long tenantId, UUID userId, UUID exceptSessionId) {
         if (exceptSessionId == null) {

@@ -31,6 +31,9 @@ import java.util.Locale;
  * @param sloP95Ms            the response-time SLO the dashboard compares
  *                            against; 0 means no SLO has been agreed, and the
  *                            console then shows the percentiles alone
+ * @param breakGlassCodeHash  SHA-256 of the sealed emergency code, hex; empty
+ *                            disables break-glass, and the code itself is never
+ *                            configured, logged or stored here
  */
 @ConfigurationProperties(prefix = "gmlc.ops")
 public record OpsProperties(
@@ -48,7 +51,8 @@ public record OpsProperties(
         String bootstrapPassword,
         String bootstrapTotpSecret,
         @DefaultValue("LAB") String environment,
-        @DefaultValue("0") int sloP95Ms) {
+        @DefaultValue("0") int sloP95Ms,
+        @DefaultValue("") String breakGlassCodeHash) {
 
     /**
      * The label attached to every figure the console derives from stored rows.

@@ -68,7 +68,7 @@ public class OpsSessionController {
         Instant expiresAt = sessionRepository.find(context.sessionId())
                 .map(OpsSession::absoluteExpiresAt)
                 .orElse(Instant.now());
-        return SessionView.of(context.user(), context.csrfToken(), expiresAt, properties);
+        return SessionView.of(context, expiresAt, properties);
     }
 
     public record LoginRequest(
@@ -86,7 +86,9 @@ public class OpsSessionController {
             String csrfToken,
             Instant expiresAt,
             String environment,
-            String dataSource) {
+            String dataSource,
+            boolean breakGlass,
+            Instant breakGlassExpiresAt) {
 
         static SessionView of(OpsUser user, String csrfToken, Instant expiresAt,
                               OpsProperties properties) {
@@ -94,7 +96,18 @@ public class OpsSessionController {
                     user.role().name(),
                     user.role().permissions().stream().map(Enum::name).sorted().toList(),
                     csrfToken, expiresAt,
-                    properties.normalisedEnvironment(), properties.dataSourceLabel());
+                    properties.normalisedEnvironment(), properties.dataSourceLabel(),
+                    false, null);
+        }
+
+        static SessionView of(OpsContext context, Instant expiresAt, OpsProperties properties) {
+            OpsUser user = context.user();
+            return new SessionView(user.userId(), user.username(), user.displayName(),
+                    user.role().name(),
+                    context.permissions().stream().map(Enum::name).sorted().toList(),
+                    context.csrfToken(), expiresAt,
+                    properties.normalisedEnvironment(), properties.dataSourceLabel(),
+                    context.breakGlass(), context.breakGlassExpiresAt());
         }
     }
 }

@@ -45,6 +45,8 @@ The split is recorded with its reasoning in the core repository under
 | Notifier channels: sealed signing secrets, signed WEBHOOK delivery only | **Built and tested** (phase C5b); EMAIL, TELEGRAM and SLACK answer `NOTIFIER_NOT_AVAILABLE` |
 | Console Tracking screen: subjects, stored-result trails, schedules, channels | **Built and tested** (phase C5c) |
 | Configuration store: versioned items, reasons, audit, four-eyes in production | **Built and tested** (phase C6a) |
+| Users and access API: role matrix, live sessions, audit view, sign-in policy, client register | **Built and tested** (phase C6b) |
+| Break-glass: sealed deployment code, half-hour ADMIN elevation, review by a second administrator | **Built and tested** (phase C6b) |
 | Console Administration (configuration, users, four-eyes screens) | Not yet (phase C6c) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
@@ -149,6 +151,17 @@ GET  /v1/ops/configuration/changes?status= change trail, newest first           
 POST /v1/ops/configuration/changes         request a change and give a reason     (session, MANAGE_CONFIG + CSRF)
 POST /v1/ops/configuration/changes/{id}/approve  a second approver applies it    (session, MANAGE_CONFIG + CSRF)
 POST /v1/ops/configuration/changes/{id}/reject   decline it with a note          (session, MANAGE_CONFIG + CSRF)
+
+GET  /v1/ops/access/roles                  the permission matrix               (session, MANAGE_USERS)
+GET  /v1/ops/access/sessions               live operator sessions              (session, MANAGE_USERS)
+POST /v1/ops/access/sessions/{id}/sign-out end one session                     (session, MANAGE_USERS + CSRF)
+GET  /v1/ops/access/audit                  who did what, filtered              (session, MANAGE_USERS)
+GET  /v1/ops/access/policy                 password, TOTP, session and lockout  (session, MANAGE_USERS)
+GET  /v1/ops/access/clients                limits, purposes and allowlists      (session, MANAGE_CLIENTS)
+POST /v1/ops/access/break-glass            emergency elevation with a reason    (session + CSRF, sealed code)
+DELETE /v1/ops/access/break-glass          end your own elevation               (session + CSRF)
+GET  /v1/ops/access/break-glass            grants awaiting or after review      (session, MANAGE_USERS)
+POST /v1/ops/access/break-glass/{id}/review  record what the grant was used for (session, MANAGE_USERS + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -262,9 +275,10 @@ every denial. The last enabled administrator cannot be disabled or demoted,
 and an operator cannot disable their own account.
 
 **Audit.** Sign-ins (allowed and denied, with reason and remote address),
-sign-outs, user creation, role and enablement changes, password changes and
-forced sign-outs are written to `audit_event.actor_user_id`. No audit row ever
-holds a password, TOTP secret or position.
+sign-outs, user creation, role and enablement changes, password changes,
+forced sign-outs and break-glass starts, refusals and reviews are written to
+`audit_event.actor_user_id`. No audit row ever holds a password, TOTP secret,
+emergency code or position.
 
 **Seeding.** Set `GMLC_OPS_BOOTSTRAP_USER`, `GMLC_OPS_BOOTSTRAP_PASSWORD` and
 `GMLC_OPS_BOOTSTRAP_TOTP_SECRET` once. The first start creates that
@@ -533,6 +547,37 @@ hint. It returns `found: false` with `NO_LOCATION_YET`, `NO_CONSENT` (consent is
 re-checked on every read, so a revocation takes effect) or `TRACKING_DISABLED`.
 A found answer carries `dataSource` - `REAL`, `BENCH` or `LAB_SIM` from the
 deployment's environment - beside the full fix envelope.
+
+**Users and access (phase C6b).** `GET /v1/ops/access/roles` returns the
+matrix the interceptor enforces, so the console can show the truth rather than
+a copy that drifts; reading it, the session list, the audit view and the
+sign-in policy needs `MANAGE_USERS`, while the client register needs
+`MANAGE_CLIENTS`. Every live session of the tenant is listed with its operator,
+remote address, idle clock and expiry, and an administrator can end one by id;
+the acting operator and the target are both audited. The audit view filters by
+action, outcome, actor (operator or client) and a time window, and pages by
+`before`. It returns the stored detail document unchanged: no audit row holds a
+position or a raw subscriber identifier, and the viewer adds nothing that would
+turn it into one. The policy view reports the password floor, Argon2 cost,
+TOTP digits and step, lockout, the two session clocks and whether break-glass
+is configured. The client register shows allowed purposes, the accuracy
+ceiling, the two rate limits, the address allowlist and the enabled flag; key
+hashes are never selected.
+
+Break-glass is the emergency path. Set
+`GMLC_OPS_BREAK_GLASS_CODE_HASH` to the SHA-256 of a code kept offline
+(`printf '%s' "$CODE" | sha256sum`); the code itself is never configured or
+stored. A signed-in operator supplies that code and a reason of at least 20
+characters, and their current session alone carries the ADMIN permission set
+for 30 minutes; the grant dies with that session and cannot be moved to
+another. A second holder of `MANAGE_USERS` must review the grant after it ends,
+recording what the elevation was used for; the grantee cannot review their own,
+and a second review is refused. The start, every refusal and the review are
+audited, and the grant is `PENDING` review from the moment it is raised. With
+no hash the feature is off, the policy says so, and the endpoint answers
+`BREAK_GLASS_DISABLED`. Two limits: there is no self-service TOTP re-enrolment
+yet, and if nobody at all can sign in, recovery is a deployment procedure
+rather than a console one.
 
 **Configuration (phase C6a).** A configuration item has one live value and a
 version; every change is a row carrying the value it replaces, the value

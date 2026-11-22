@@ -100,6 +100,10 @@ gmlc:
     bootstrap-username: ${GMLC_OPS_BOOTSTRAP_USER:}
     bootstrap-password: ${GMLC_OPS_BOOTSTRAP_PASSWORD:}
     bootstrap-totp-secret: ${GMLC_OPS_BOOTSTRAP_TOTP_SECRET:}
+    # SHA-256 (hex) of the sealed emergency code, never the code itself. Blank
+    # disables break-glass and the policy endpoint reports that. Generate it
+    # offline with: printf '%s' "$CODE" | sha256sum
+    break-glass-code-hash: ${GMLC_OPS_BREAK_GLASS_CODE_HASH:}
     # Alert thresholds, evaluated over recorded traffic and observed transport
     # outcomes. A peer is never probed: DOWN means exchanges were attempted and
     # failed. The values in force are returned by GET /v1/ops/peers so the

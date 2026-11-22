@@ -48,6 +48,14 @@ public class OpsErrorHandler {
         return problem;
     }
 
+    @ExceptionHandler(OpsBreakGlassRejectedException.class)
+    public ProblemDetail breakGlassRejected(OpsBreakGlassRejectedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setTitle("Forbidden");
+        problem.setProperty("code", "BREAK_GLASS_CODE_INVALID");
+        return problem;
+    }
+
     @ExceptionHandler(OpsNotFoundException.class)
     public ProblemDetail notFound(OpsNotFoundException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,

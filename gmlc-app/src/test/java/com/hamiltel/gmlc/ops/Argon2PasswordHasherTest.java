@@ -11,7 +11,7 @@ class Argon2PasswordHasherTest {
 
     private final Argon2PasswordHasher hasher = new Argon2PasswordHasher(
             new OpsProperties(false, 15, 8, 5, 15, "test", 30, 4096, 1, 1,
-                    null, null, null, "LAB", 0));
+                    null, null, null, "LAB", 0, ""));
 
     @Test
     void hashesWithArgon2idAndVerifies() {

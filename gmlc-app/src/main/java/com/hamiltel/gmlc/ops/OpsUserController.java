@@ -29,6 +29,8 @@ import java.util.UUID;
 @OpsRequires(OpsPermission.MANAGE_USERS)
 public class OpsUserController {
 
+    static final int PASSWORD_MIN_LENGTH = 12;
+
     private final OpsUserService users;
     private final OpsSessionService sessions;
 
@@ -86,7 +88,7 @@ public class OpsUserController {
     }
 
     public record ChangePasswordRequest(
-            @NotBlank @Size(min = 12, max = 200,
+            @NotBlank @Size(min = PASSWORD_MIN_LENGTH, max = 200,
                     message = "must be between 12 and 200 characters") String password) {
     }
 

@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +56,32 @@ public class ApiClientRepository {
 
     public Optional<StoredClient> findByTenantAndId(long tenantId, UUID clientId) {
         return jdbc.query(SELECT_BY_ID, this::mapStored, tenantId, clientId).stream().findFirst();
+    }
+
+    /**
+     * Every client of one tenant, without key material, for the administration
+     * view: the limits, the permitted purposes and the address allowlist.
+     */
+    public List<ClientAdminRow> listAll(long tenantId) {
+        return jdbc.query("""
+                SELECT client_id, name, array_to_string(purposes, '|') AS purposes_text,
+                       max_accuracy_m, rate_per_second, rate_per_day,
+                       array_to_string(ip_allowlist, '|') AS allowlist_text,
+                       enabled, created_at
+                  FROM api_client
+                 WHERE tenant_id = ?
+                 ORDER BY name
+                """, (rs, rowNum) -> new ClientAdminRow(
+                        rs.getObject("client_id", UUID.class),
+                        rs.getString("name"),
+                        List.copyOf(split(rs.getString("purposes_text"))),
+                        rs.getInt("max_accuracy_m"),
+                        rs.getInt("rate_per_second"),
+                        rs.getInt("rate_per_day"),
+                        List.copyOf(split(rs.getString("allowlist_text"))),
+                        rs.getBoolean("enabled"),
+                        rs.getTimestamp("created_at").toInstant()),
+                tenantId);
     }
 
     /** Enabled clients of one tenant, without key material, for the console picker. */
@@ -128,5 +155,17 @@ public class ApiClientRepository {
     }
 
     public record ClientView(UUID clientId, String name, List<String> purposes, int maxAccuracyM) {
+    }
+
+    public record ClientAdminRow(
+            UUID clientId,
+            String name,
+            List<String> purposes,
+            int maxAccuracyM,
+            int ratePerSecond,
+            int ratePerDay,
+            List<String> ipAllowlist,
+            boolean enabled,
+            Instant createdAt) {
     }
 }
