@@ -8,6 +8,8 @@ export interface Session {
   expiresAt: string;
   environment: string;
   dataSource: string;
+  breakGlass?: boolean;
+  breakGlassExpiresAt?: string;
 }
 
 export interface Feature {
@@ -680,4 +682,171 @@ export interface CreatedChannel {
   channel: NotificationChannel;
   secret: string;
   secretNotice: string;
+}
+
+export interface ConfigChange {
+  changeId: string;
+  itemKey: string;
+  baseVersion: number;
+  previousValue?: unknown;
+  requestedValue?: unknown;
+  reason: string;
+  status: 'PENDING' | 'APPLIED' | 'REJECTED' | 'CANCELLED' | string;
+  requiresApproval: boolean;
+  requestedBy: string;
+  requestedByName: string;
+  requestedAt: string;
+  decidedBy?: string;
+  decidedByName?: string;
+  decidedAt?: string;
+  decisionNote?: string;
+  appliedVersion?: number;
+  appliedAt?: string;
+}
+
+export interface ConfigItem {
+  key: string;
+  label: string;
+  description: string;
+  type: 'INTEGER' | 'DECIMAL' | 'TEXT' | string;
+  signalling: boolean;
+  value: string | number;
+  defaultValue: string | number;
+  source: 'DEFAULT' | 'DATABASE' | string;
+  version: number;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedAt?: string;
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  pending?: ConfigChange | null;
+}
+
+export interface ConfigSnapshot {
+  environment: string;
+  secondApproverRequired: boolean;
+  items: ConfigItem[];
+}
+
+export interface CellPlanEntry {
+  rat: string;
+  cellIdentity: string;
+  areaCode: string;
+  siteName?: string;
+  latitude?: number;
+  longitude?: number;
+  shape: string;
+  radiusM?: number;
+  dataQuality?: number;
+  updatedAt: string;
+}
+
+export interface CellPlan {
+  total: number;
+  limit: number;
+  offset: number;
+  rat?: string;
+  byRat: NameCount[];
+  byQuality: NameCount[];
+  cells: CellPlanEntry[];
+}
+
+export interface OpsUserView {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+  enabled: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+}
+
+export interface CreatedOpsUser {
+  user: OpsUserView;
+  oneTimePassword: string;
+  totpSecret: string;
+}
+
+export interface RoleMatrix {
+  permissions: string[];
+  roles: Array<{ role: string; permissions: string[] }>;
+}
+
+export interface ActiveSession {
+  sessionId: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+  remoteAddr?: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+
+export interface AuditRow {
+  auditId: number;
+  occurredAt: string;
+  action: string;
+  outcome: string;
+  requestId?: string;
+  subjectRef?: string;
+  actorType: 'OPERATOR' | 'CLIENT' | 'SYSTEM' | string;
+  actorUsername?: string;
+  actorDisplayName?: string;
+  clientName?: string;
+  remoteAddr?: string;
+  detail?: Record<string, unknown> | null;
+}
+
+export interface AccessPolicy {
+  mfaRequired: boolean;
+  passwordMinLength: number;
+  totpDigits: number;
+  totpPeriodSeconds: number;
+  totpIssuer: string;
+  lockoutThreshold: number;
+  lockoutMinutes: number;
+  sessionIdleMinutes: number;
+  sessionAbsoluteHours: number;
+  passwordHash: string;
+  argon2MemoryKib: number;
+  argon2Iterations: number;
+  argon2Parallelism: number;
+  breakGlassMinutes: number;
+  breakGlassConfigured: boolean;
+  breakGlassScope: string;
+}
+
+export interface AdminClient {
+  clientId: string;
+  name: string;
+  purposes: string[];
+  maxAccuracyM: number;
+  ratePerSecond: number;
+  ratePerDay: number;
+  ipAllowlist: string[];
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface BreakGlassGrant {
+  grantId: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  sessionId?: string;
+  reason: string;
+  grantedAt: string;
+  expiresAt: string;
+  endedAt?: string;
+  active: boolean;
+  reviewStatus: 'PENDING' | 'REVIEWED' | string;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+  reviewDue: boolean;
 }

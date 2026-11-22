@@ -128,6 +128,44 @@ public class CellRepository {
         return count == null ? 0 : count;
     }
 
+    /** Plan size per radio access technology, largest first. */
+    public List<GroupCount> countByRat(long tenantId) {
+        return jdbc.query("""
+                SELECT rat AS name, count(*) AS n
+                  FROM cell
+                 WHERE tenant_id = ?
+                 GROUP BY rat
+                 ORDER BY rat
+                """, (rs, rowNum) -> new GroupCount(rs.getString("name"), rs.getLong("n")),
+                tenantId);
+    }
+
+    /**
+     * Rows per completeness band. The score says which fields the plan carries,
+     * not whether the antenna is where the plan says.
+     */
+    public List<GroupCount> countByQuality(long tenantId) {
+        return jdbc.query("""
+                SELECT CASE
+                         WHEN data_quality IS NULL THEN 'UNSCORED'
+                         WHEN data_quality >= 90 THEN '90-100'
+                         WHEN data_quality >= 70 THEN '70-89'
+                         WHEN data_quality >= 50 THEN '50-69'
+                         WHEN data_quality >= 25 THEN '25-49'
+                         ELSE 'BELOW 25'
+                       END AS name,
+                       count(*) AS n
+                  FROM cell
+                 WHERE tenant_id = ?
+                 GROUP BY name
+                 ORDER BY name DESC
+                """, (rs, rowNum) -> new GroupCount(rs.getString("name"), rs.getLong("n")),
+                tenantId);
+    }
+
+    public record GroupCount(String name, long count) {
+    }
+
     private static final RowMapper<CellRow> MAPPER = (rs, rowNum) -> new CellRow(
             rs.getLong("tenant_id"),
             rs.getString("rat"),

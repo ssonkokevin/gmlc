@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
+import { Configuration } from './pages/Configuration';
 import { Dashboard } from './pages/Dashboard';
 import { Geofencing } from './pages/Geofencing';
 import { Locate } from './pages/Locate';
@@ -7,6 +8,7 @@ import { Monitoring } from './pages/Monitoring';
 import { Reports } from './pages/Reports';
 import { SignIn } from './pages/SignIn';
 import { Tracking } from './pages/Tracking';
+import { Users } from './pages/Users';
 import type { RangeKey, Session } from './types';
 
 type RouteKey =
@@ -71,27 +73,6 @@ function routeFromHash(): RouteKey {
   const hash = window.location.hash.replace(/^#\/?/, '');
   return (ROUTE_KEYS as string[]).includes(hash) ? (hash as RouteKey) : 'dashboard';
 }
-
-type NotBuiltKey = Exclude<RouteKey, 'dashboard' | 'monitoring' | 'locate' | 'reports' | 'geofencing' | 'tracking'>;
-
-const NOT_YET: Record<NotBuiltKey, { phase: string; lines: string[] }> = {
-  configuration: {
-    phase: 'phase C6',
-    lines: [
-      'Alert thresholds, SLO targets and licence limits, changeable by administrators.',
-      'Four-eyes approval for changes that widen what the deployment can do.',
-      'Every change written to the audit trail with the person who made it.',
-    ],
-  },
-  users: {
-    phase: 'phase C6',
-    lines: [
-      'Operator accounts, roles and permissions managed from the console.',
-      'Enrolment for the authenticator used at sign-in, with recovery handled by a second administrator.',
-      'Revoking a session or an account takes effect on the next request.',
-    ],
-  },
-};
 
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -303,9 +284,10 @@ export function App() {
                   Peer state comes from exchanges the gateway attempted. Silence is IDLE, never
                   evidence that a peer is healthy.
                 </p>
-                <p className="note">Console build: phase C5. Dashboard, Location Request,
-                  Monitoring, Reports, Geofencing and Tracking are live; Administration
-                  screens arrive in a later phase.</p>
+                <p className="note">Console build: phase C6c. Every screen is live: Operations
+                  Dashboard, Location Request, Monitoring, Reports, Geofencing, Tracking,
+                  Configuration and Users &amp; Access. Where a capability is absent the
+                  screen names it instead of showing a placeholder.</p>
               </div>
             </details>
 
@@ -357,33 +339,13 @@ export function App() {
             <Geofencing session={session} onExpired={expired} />
           ) : route === 'tracking' ? (
             <Tracking session={session} onExpired={expired} />
+          ) : route === 'configuration' ? (
+            <Configuration session={session} onExpired={expired} />
           ) : (
-            <ComingSoon route={route} />
+            <Users session={session} onExpired={expired} />
           )}
         </main>
       </div>
-    </div>
-  );
-}
-
-function ComingSoon({ route }: { route: NotBuiltKey }) {
-  const plan = NOT_YET[route];
-  return (
-    <div className="coming-soon">
-      <p className="phase-tag">Not built yet</p>
-      <h1>{TITLE_OF[route]}</h1>
-      <p>
-        This screen is scheduled for {plan.phase}. It is empty on purpose: no placeholder
-        figures are shown, because a number on this console must come from a stored row.
-      </p>
-      <h2>What it will do</h2>
-      <ul>
-        {plan.lines.map((line) => <li key={line}>{line}</li>)}
-      </ul>
-      <p className="note">
-        Until then, the API endpoints that back this screen are covered by the same consent,
-        purpose, licence and audit checks as every other request.
-      </p>
     </div>
   );
 }

@@ -47,7 +47,7 @@ The split is recorded with its reasoning in the core repository under
 | Configuration store: versioned items, reasons, audit, four-eyes in production | **Built and tested** (phase C6a) |
 | Users and access API: role matrix, live sessions, audit view, sign-in policy, client register | **Built and tested** (phase C6b) |
 | Break-glass: sealed deployment code, half-hour ADMIN elevation, review by a second administrator | **Built and tested** (phase C6b) |
-| Console Administration (configuration, users, four-eyes screens) | Not yet (phase C6c) |
+| Console Administration (configuration, users, four-eyes screens) | **Built and tested** (phase C6c) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -151,6 +151,7 @@ GET  /v1/ops/configuration/changes?status= change trail, newest first           
 POST /v1/ops/configuration/changes         request a change and give a reason     (session, MANAGE_CONFIG + CSRF)
 POST /v1/ops/configuration/changes/{id}/approve  a second approver applies it    (session, MANAGE_CONFIG + CSRF)
 POST /v1/ops/configuration/changes/{id}/reject   decline it with a note          (session, MANAGE_CONFIG + CSRF)
+GET  /v1/ops/administration/cells          cell plan with completeness bands    (session, MANAGE_CONFIG)
 
 GET  /v1/ops/access/roles                  the permission matrix               (session, MANAGE_USERS)
 GET  /v1/ops/access/sessions               live operator sessions              (session, MANAGE_USERS)
@@ -336,7 +337,7 @@ answer). One open row per condition: a repeated evaluation refreshes
 longer observes. Acknowledging with `ACK_ALERTS` records the operator and
 writes `OPS_ALERT_ACKNOWLEDGED`; it never closes the alert.
 
-Honest limits: the console UI covers phases C1 to C5; OIDC and scheduled
+Honest limits: the console UI covers phases C1 to C6c; OIDC and scheduled
 reports are not built yet. A
 tracked subject is a roster row over stored results, not a live network feed,
 and a schedule places governed requests on a timer rather than subscribing to
@@ -345,7 +346,8 @@ the network. Those arrive with their own phases and are not claimed here. Peer
 peer reports `IDLE`, never a health claim.
 
 **Console UI (phase C1d shell, phase C2 Location Request, phase C3 Monitoring
-and Reports, phase C4 Geofencing, phase C5 Tracking).** `/console/` serves
+and Reports, phase C4 Geofencing, phase C5 Tracking, phase C6c
+Administration).** `/console/` serves
 the operator console: a React
 19 + TypeScript bundle built by Vite into
 `gmlc-app/src/main/resources/static/console`. The shell has the sidebar
@@ -618,6 +620,48 @@ and `SLACK` are disabled in the type picker rather than selectable. A
 email, Telegram and Slack each say `NOT AVAILABLE` with the gateway's reason.
 The screen is subject to the same CSP as the rest of the console.
 
+**Console Configuration (phase C6c).** Five tabs. Thresholds lists all seven
+editable items with value, source (`DEFAULT` or `DATABASE`), version and state;
+Edit opens a value and reason form (reason at least 10 characters) and the
+server re-checks the type and range. Change history filters by status and
+shows each row with the value before and after, the reason, the decider and
+the decision; a pending row gets Approve and Reject, with Approve disabled for
+the operator who raised it and for a change that did not require approval, and
+Reject demanding a note. Network & cells shows the two signalling faces from
+`GET /v1/ops/peers` with the IDLE and NOT_CONFIGURED states the backend
+reports, the evaluation settings in force, an environment-managed
+routing/realms panel, a "Cell-to-coordinate overrides - not built" panel, and
+the cell plan from `GET /v1/ops/administration/cells`: RAT counts, completeness
+bands, a hand-built equirectangular SVG with the stored positions and their
+area-level uncertainty, and a read-only table. The plan is read-only on
+purpose: import still needs the deployment admin key and this screen does not
+hold it. Reference methods lists vendor reference accuracies for Basic
+Cell-ID, E-CID, OTDOA, A-GNSS, U-TDOA, E-OTD and TDOA with what the network
+must provide; only Basic Cell-ID says built, and every row says it has not
+been verified on a real network. Privacy & limits states consent, the absence
+of a retention job, sealed notifier credentials, the licence that is not
+installed or metered, and the honest limits of this area.
+
+**Console Users & Access (phase C6c).** Six tabs. People lists the roster with
+its assigned role, state and last sign-in; a row can change role, enable or
+disable the account, end every session it holds, or set a new password
+(at least 12 characters), and the create form returns the one-time password
+and TOTP secret once in a panel that is dismissed before the roster is used
+again. Sessions lists every live session with remote address, start, last-seen
+and expiry, marks the current one, and can end another. Audit log reads
+`GET /v1/ops/access/audit` with action, outcome, actor and row-limit filters,
+shows the stored detail per row and pages older through the `before`
+parameter; the filter is applied with the Apply button, not on each keystroke.
+Policy & roles shows the sign-in policy the gateway enforces, what the policy
+cannot do, and the permission matrix per role. Break-glass shows whether the
+deployment has a sealed code, starts a 30-minute ADMIN elevation with a reason
+of at least 20 characters and a code field that is cleared after submission,
+then lists grants and lets a different administrator review one. API clients
+is a read-only register of limits, purposes and allowlists; key issuance and
+rotation remain a deployment procedure. The screen repeats that a hidden
+button is not a control: the server checks the permission on every request
+and a role that does not carry it is refused with an audited denial.
+
 **Console Geofencing (phase C4c).** The screen keeps four tabs - Geofences,
 Entering, Leaving and Inside - plus a Webhooks tab. The Geofences tab lists each
 definition with its shape summary (centre and radius, vertex count, axes and
@@ -643,8 +687,10 @@ The page keeps the strict policy: `script-src 'self'; style-src 'self'`, no
 inline script or style, no CDN, no external font, no map tiles. Charts are
 hand-built SVG (presentation attributes, not style attributes) and each one
 has a `<details>` data table so the same numbers are readable without the
-graphic. Other sidebar screens say plainly that they are not built yet; no
-placeholder figures are shown.
+graphic. Every sidebar screen is live; where a capability is absent the screen
+names it (no route or realm editor, no cell override table, no retention job,
+no licence metering, no capability-profile editor) rather than showing
+placeholder figures.
 
 Building the console (Node is needed only on the build machine; the output is
 committed so an offline Maven build still serves it):
@@ -677,7 +723,17 @@ Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [the same stored fixes as a density heatmap](docs/location/console-tracking-heatmap.png),
 [schedules with an expanded attempt log](docs/location/console-tracking-schedules.png),
 [notifier channels and the honesty panel](docs/location/console-tracking-channels.png),
-[a screen that is not built yet](docs/location/console-not-built.png).
+[Configuration thresholds with value, source and version](docs/location/console-configuration.png),
+[the change history with reasons and decisions](docs/location/console-configuration-changes.png),
+[peers, the cell plan and its completeness bands](docs/location/console-configuration-network.png),
+[vendor reference methods, none verified on a real network](docs/location/console-configuration-reference.png),
+[privacy, retention and licence limits](docs/location/console-configuration-limits.png),
+[the operator roster and create form](docs/location/console-users.png),
+[live sessions with the current one marked](docs/location/console-users-sessions.png),
+[the audit log with its filters](docs/location/console-users-audit.png),
+[the sign-in policy and role matrix](docs/location/console-users-policy.png),
+[break-glass with a cleared-after-submit code field](docs/location/console-users-break-glass.png),
+[the read-only API client register](docs/location/console-users-clients.png).
 
 ## The Le request path
 

@@ -40,7 +40,7 @@ public final class TcpM3uaTransport implements M3uaTransport {
 
     public TcpM3uaTransport(String host, int port, int localPointCode,
                             int networkIndicator, Integer routingContext) {
-        this(host, port, localPointCode, networkIndicator, routingContext, "hamiltel-gmlc");
+        this(host, port, localPointCode, networkIndicator, routingContext, "GMLC");
     }
 
     public TcpM3uaTransport(String host, int port, int localPointCode,

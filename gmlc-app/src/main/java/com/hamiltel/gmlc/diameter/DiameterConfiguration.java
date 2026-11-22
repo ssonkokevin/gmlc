@@ -24,7 +24,7 @@ public class DiameterConfiguration {
         }
         return new MonitoredDiameterTransport(
                 new TcpDiameterTransport(properties.peerHost(), properties.peerPort(),
-                        properties.originHost(), properties.originRealm(), "hamiltel-gmlc"),
+                        properties.originHost(), properties.originRealm(), "GMLC"),
                 peerHealth);
     }
 

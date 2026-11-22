@@ -21,8 +21,8 @@ public record DiameterProperties(
         int peerPort,
         int timeoutMs) {
 
-    private static final String DEFAULT_ORIGIN_HOST = "gmlc.hamiltel.local";
-    private static final String DEFAULT_ORIGIN_REALM = "hamiltel.local";
+    private static final String DEFAULT_ORIGIN_HOST = "gmlc.local";
+    private static final String DEFAULT_ORIGIN_REALM = "local";
     private static final int DEFAULT_PORT = 3868;
     private static final int DEFAULT_TIMEOUT_MS = 5000;
 

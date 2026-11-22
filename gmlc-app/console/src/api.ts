@@ -1,8 +1,17 @@
 import type {
+  AccessPolicy,
+  ActiveSession,
+  AdminClient,
   AlertPage,
   ArmView,
+  AuditRow,
+  BreakGlassGrant,
+  CellPlan,
   ClientView,
+  ConfigChange,
+  ConfigSnapshot,
   CreatedChannel,
+  CreatedOpsUser,
   CreatedSubscription,
   DashboardData,
   Deferred,
@@ -15,11 +24,13 @@ import type {
   GeofenceView,
   Mix,
   NotificationChannel,
+  OpsUserView,
   PeerPage,
   RangeKey,
   Reports,
   RequestDetail,
   RequestPage,
+  RoleMatrix,
   Session,
   Submission,
   SubscriptionView,
@@ -397,6 +408,144 @@ export const api = {
 
   deleteChannel(channelId: string): Promise<void> {
     return call<void>(`/v1/ops/tracking/channels/${channelId}`, { method: 'DELETE' });
+  },
+
+  configuration(): Promise<ConfigSnapshot> {
+    return call<ConfigSnapshot>('/v1/ops/configuration');
+  },
+
+  configChanges(status = 'ALL', limit = 50): Promise<ConfigChange[]> {
+    const query = new URLSearchParams({ status, limit: String(limit) });
+    return call<ConfigChange[]>(`/v1/ops/configuration/changes?${query}`);
+  },
+
+  requestConfigChange(key: string, value: string | number, reason: string): Promise<ConfigChange> {
+    return call<ConfigChange>('/v1/ops/configuration/changes', {
+      method: 'POST',
+      body: JSON.stringify({ key, value, reason }),
+    });
+  },
+
+  approveConfigChange(changeId: string, note?: string): Promise<ConfigChange> {
+    return call<ConfigChange>(`/v1/ops/configuration/changes/${changeId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+  },
+
+  rejectConfigChange(changeId: string, note: string): Promise<ConfigChange> {
+    return call<ConfigChange>(`/v1/ops/configuration/changes/${changeId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+  },
+
+  cellPlan(rat?: string, limit = 100): Promise<CellPlan> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (rat) {
+      query.set('rat', rat);
+    }
+    return call<CellPlan>(`/v1/ops/administration/cells?${query}`);
+  },
+
+  opsUsers(): Promise<OpsUserView[]> {
+    return call<OpsUserView[]>('/v1/ops/users');
+  },
+
+  createOpsUser(input: {
+    username: string;
+    displayName: string;
+    role: string;
+    enabled: boolean;
+  }): Promise<CreatedOpsUser> {
+    return call<CreatedOpsUser>('/v1/ops/users', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  patchOpsUser(userId: string, patch: { role?: string; enabled?: boolean }): Promise<OpsUserView> {
+    return call<OpsUserView>(`/v1/ops/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  signOutOpsUser(userId: string): Promise<void> {
+    return call<void>(`/v1/ops/users/${userId}/sign-out`, { method: 'POST' });
+  },
+
+  setOpsPassword(userId: string, password: string): Promise<void> {
+    return call<void>(`/v1/ops/users/${userId}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  },
+
+  roleMatrix(): Promise<RoleMatrix> {
+    return call<RoleMatrix>('/v1/ops/access/roles');
+  },
+
+  activeSessions(): Promise<ActiveSession[]> {
+    return call<ActiveSession[]>('/v1/ops/access/sessions');
+  },
+
+  signOutSession(sessionId: string): Promise<void> {
+    return call<void>(`/v1/ops/access/sessions/${sessionId}/sign-out`, { method: 'POST' });
+  },
+
+  auditLog(options: {
+    action?: string;
+    outcome?: string;
+    actor?: string;
+    limit?: number;
+    before?: number;
+  } = {}): Promise<AuditRow[]> {
+    const query = new URLSearchParams({ limit: String(options.limit ?? 100) });
+    if (options.action) {
+      query.set('action', options.action);
+    }
+    if (options.outcome && options.outcome !== 'ALL') {
+      query.set('outcome', options.outcome);
+    }
+    if (options.actor) {
+      query.set('actor', options.actor);
+    }
+    if (options.before) {
+      query.set('before', String(options.before));
+    }
+    return call<AuditRow[]>(`/v1/ops/access/audit?${query}`);
+  },
+
+  accessPolicy(): Promise<AccessPolicy> {
+    return call<AccessPolicy>('/v1/ops/access/policy');
+  },
+
+  adminClients(): Promise<AdminClient[]> {
+    return call<AdminClient[]>('/v1/ops/access/clients');
+  },
+
+  breakGlassGrants(status = 'ALL', limit = 50): Promise<BreakGlassGrant[]> {
+    const query = new URLSearchParams({ status, limit: String(limit) });
+    return call<BreakGlassGrant[]>(`/v1/ops/access/break-glass?${query}`);
+  },
+
+  startBreakGlass(reason: string, code: string): Promise<BreakGlassGrant> {
+    return call<BreakGlassGrant>('/v1/ops/access/break-glass', {
+      method: 'POST',
+      body: JSON.stringify({ reason, code }),
+    });
+  },
+
+  endBreakGlass(): Promise<BreakGlassGrant> {
+    return call<BreakGlassGrant>('/v1/ops/access/break-glass', { method: 'DELETE' });
+  },
+
+  reviewBreakGlass(grantId: string, note: string): Promise<BreakGlassGrant> {
+    return call<BreakGlassGrant>(`/v1/ops/access/break-glass/${grantId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
   },
 };
 
