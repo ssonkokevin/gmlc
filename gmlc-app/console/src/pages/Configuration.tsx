@@ -10,8 +10,8 @@ import type {
   ConfigItem,
   ConfigSnapshot,
   PeerPage,
-  Session,
 } from '../types';
+import type { Session } from '../ui';
 
 type TabKey = 'thresholds' | 'changes' | 'network' | 'reference' | 'limits';
 

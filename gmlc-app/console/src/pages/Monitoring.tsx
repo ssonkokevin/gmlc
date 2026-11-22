@@ -18,8 +18,8 @@ import type {
   ExchangeSeries,
   PeerPage,
   RangeKey,
-  Session,
 } from '../types';
+import type { Session } from '../ui';
 
 const RANGES: RangeKey[] = ['1h', '24h', '7d', '30d'];
 const PAGE = 25;

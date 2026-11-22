@@ -9,7 +9,8 @@ import { Reports } from './pages/Reports';
 import { SignIn } from './pages/SignIn';
 import { Tracking } from './pages/Tracking';
 import { Users } from './pages/Users';
-import type { RangeKey, Session } from './types';
+import type { RangeKey } from './types';
+import type { Session } from './ui';
 
 type RouteKey =
   | 'dashboard'

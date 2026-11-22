@@ -6,13 +6,13 @@ import { fmtAge, fmtDateTime, fmtInt } from '../format';
 import type {
   ClientView,
   NotificationChannel,
-  Session,
   TrackedSubject,
   TrackingFix,
   TrackingRun,
   TrackingSchedule,
   TrackingSummary,
 } from '../types';
+import type { Session } from '../ui';
 
 type TabKey = 'subjects' | 'trail' | 'schedules' | 'channels';
 type MapMode = 'MARKERS' | 'TRAIL' | 'HEATMAP';

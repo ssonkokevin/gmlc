@@ -13,9 +13,9 @@ import type {
   GeofenceView,
   GeoShape,
   RangeKey,
-  Session,
   SubscriptionView,
 } from '../types';
+import type { Session } from '../ui';
 
 const RANGES: RangeKey[] = ['1h', '24h', '7d', '30d'];
 const SHAPES: Array<{ value: GeoShape; label: string }> = [

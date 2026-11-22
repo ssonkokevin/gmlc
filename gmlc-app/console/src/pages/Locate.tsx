@@ -6,10 +6,10 @@ import { fmtAge, fmtDateTime, fmtInt, fmtMs, fmtTime } from '../format';
 import type {
   ClientView,
   RequestDetail,
-  Session,
   Submission,
   TimelineEvent,
 } from '../types';
+import type { Session } from '../ui';
 
 const FINAL = new Set(['DELIVERED', 'FAILED', 'TIMEOUT']);
 

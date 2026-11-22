@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api';
 import { KpiCard, Panel } from '../components';
 import { RANGE_LABEL, fmtAge, fmtInt, fmtMs, fmtShare, fmtTime } from '../format';
-import type { RangeKey, Reports as ReportsData, Session } from '../types';
+import type { RangeKey, Reports as ReportsData } from '../types';
+import type { Session } from '../ui';
 
 const RANGES: RangeKey[] = ['1h', '24h', '7d', '30d'];
 

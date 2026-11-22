@@ -13,7 +13,6 @@ import type {
   CreatedChannel,
   CreatedOpsUser,
   CreatedSubscription,
-  DashboardData,
   Deferred,
   DeliveryView,
   ExchangePage,
@@ -26,12 +25,12 @@ import type {
   NotificationChannel,
   OpsUserView,
   PeerPage,
+  ProblemCode,
   RangeKey,
   Reports,
   RequestDetail,
   RequestPage,
   RoleMatrix,
-  Session,
   Submission,
   SubscriptionView,
   Summary,
@@ -42,6 +41,7 @@ import type {
   TrackingSchedule,
   TrackingSummary,
 } from './types';
+import type { DashboardData, Session } from './ui';
 
 let csrfToken: string | null = null;
 
@@ -51,9 +51,9 @@ export function setCsrfToken(token: string | null): void {
 
 export class ApiError extends Error {
   readonly status: number;
-  readonly code?: string;
+  readonly code?: ProblemCode;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(status: number, message: string, code?: ProblemCode) {
     super(message);
     this.status = status;
     this.code = code;
@@ -63,7 +63,7 @@ export class ApiError extends Error {
 interface Problem {
   title?: string;
   detail?: string;
-  code?: string;
+  code?: ProblemCode;
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {

@@ -12,8 +12,8 @@ import type {
   CreatedOpsUser,
   OpsUserView,
   RoleMatrix,
-  Session,
 } from '../types';
+import type { Session } from '../ui';
 
 type TabKey = 'people' | 'sessions' | 'audit' | 'policy' | 'break-glass' | 'clients';
 
@@ -855,7 +855,7 @@ function UserRow(props: {
         </td>
         <td>
           <select aria-label={`Role for ${user.username}`} value={role}
-            onChange={(event) => setRole(event.target.value)}>
+            onChange={(event) => setRole(event.target.value as OpsUserView['role'])}>
             {options.map((name) => <option key={name} value={name}>{name}</option>)}
           </select>
           {role !== user.role ? (
@@ -986,7 +986,7 @@ function CreateUser(props: {
         <div className="field-row">
           <div className="field">
             <label htmlFor="new-role">Role</label>
-            <select id="new-role" value={role} onChange={(event) => setRole(event.target.value)}>
+            <select id="new-role" value={role} onChange={(event) => setRole(event.target.value as OpsUserView['role'])}>
               {options.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
           </div>

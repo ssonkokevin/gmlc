@@ -22,8 +22,9 @@ jobs:
           cache: npm
           cache-dependency-path: gmlc-app/console/package-lock.json
 
-      # Includes ApiSpecDriftTest, SchemaSnapshotTest and SharedConstantsTest.
-      # The snapshot test starts embedded PostgreSQL; no Docker is required.
+      # Includes ApiSpecDriftTest, OpsPayloadDriftTest, ProblemCodeDriftTest,
+      # TypesDriftTest, SchemaSnapshotTest and SharedConstantsTest. The
+      # snapshot test starts embedded PostgreSQL; no Docker is required.
       - name: Backend tests
         run: cd gmlc-app && mvn -B test
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, ApiError } from '../api';
-import type { Session } from '../types';
+import type { Session } from '../ui';
 
 export function SignIn({ onSignedIn }: { onSignedIn: (session: Session) => void }) {
   const [username, setUsername] = useState('');

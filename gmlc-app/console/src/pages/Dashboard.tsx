@@ -19,7 +19,8 @@ import {
   fmtShare,
   fmtTime,
 } from '../format';
-import type { DashboardData, RangeKey, Session } from '../types';
+import type { RangeKey } from '../types';
+import type { DashboardData, Session } from '../ui';
 
 const RANGES: RangeKey[] = ['1h', '24h', '7d', '30d'];
 

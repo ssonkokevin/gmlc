@@ -21,6 +21,9 @@ Evidence labels used on every finding:
 | Gate | Command | Result |
 | --- | --- | --- |
 | API spec vs controllers | `mvn -o -pl gmlc-app test -Dtest=ApiSpecDriftTest` | 5/5 pass, 92 operations |
+| Response schemas vs records | `mvn -o -pl gmlc-app test -Dtest=OpsPayloadDriftTest` | 1/1 pass, every record response compared |
+| Problem codes vs Java | `mvn -o -pl gmlc-app test -Dtest=ProblemCodeDriftTest` | 3/3 pass, 101 codes |
+| Console types vs spec | `mvn -o -pl gmlc-app test -Dtest=TypesDriftTest` | 1/1 pass, 96 schemas |
 | Frontend paths vs spec | `node tools/check-frontend-endpoints.mjs` | 76 calls → 75 operations in 2 files |
 | Migrations vs snapshot | `mvn -o -pl gmlc-app test -Dtest=SchemaSnapshotTest` | 1/1 pass, 25 tables, 584 lines |
 | Java constants vs fixture | same run as above (`SharedConstantsTest`) | 4/4 pass |
@@ -42,24 +45,31 @@ now enforced in both directions by `ApiSpecDriftTest`: a route served by Spring
 but absent from the spec fails, and a path in the spec with no controller fails.
 Query parameters, headers and path variables are compared name-for-name.
 
-### API-1 (unchecked) Response bodies are mostly untyped
+### API-1 (unit-tested) Response bodies were mostly untyped — FIXED
 
-`gmlc-app/console/src/types.ts` is hand-written. The spec describes only the
+`gmlc-app/console/src/types.ts` was hand-written. The spec described only the
 client Le API and a handful of ops schemas: 63 response slots across 92
-operations still reference `components/responses/OpsObject`
-(`api/openapi.yaml`, search `responses/OpsObject`), which is
-`type: object, additionalProperties: true`. Nothing compares a field the console
-reads (`types.ts`) with a field the controller writes.
+operations referenced `components/responses/OpsObject`, which was
+`type: object, additionalProperties: true`. Nothing compared a field the console
+read with a field the controller wrote, so a renamed JSON field was invisible to
+every gate.
 
-Consequence: a renamed JSON field is invisible to every gate.
-Fix (phase 2.1): give each ops response a real schema and generate
-`console/src/types.ts` from the spec; add a test that the console imports only
-generated types. **unchecked**
+Fixed in the API-schema commit: all 63 slots now reference a named schema built
+from the Java record. `OpsPayloadDriftTest` reflects every controller method whose return
+type is a record, unwraps `ResponseEntity`/`List`, and fails when the record's
+components differ from the schema's properties in either direction. Two
+endpoints were wrong in the spec rather than in code, and the spec was corrected
+(§7 items 7–8). **unit-tested**
 
-### API-2 (unchecked) No generated TypeScript
+### API-2 (unit-tested) No generated TypeScript — FIXED
 
-There is no `openapi-typescript` step and no `make types` target. The console
-and the legacy dashboard both consume hand-written shapes. Fix in phase 2.1.
+There was no generator and no `make types` target. `TypeScriptGenerator` now
+renders `console/src/types.ts` from `components.schemas`; `TypesDriftTest`
+fails when the checked-in file differs. Regenerate with
+`mvn -o -B -pl gmlc-app test -Dtest=TypesDriftTest -Dgmlc.write.types=true`.
+Console-only shapes (`Session` = `OpsSessionView`, `DashboardData`) live in
+`console/src/ui.ts`; nothing else is hand-written. The console builds with
+strict `tsc`. **unit-tested**
 
 ### API-3 (unit-tested) Endpoints no page uses
 
@@ -97,13 +107,12 @@ tenant from `@CurrentClient ApiClient`, the javadoc now states the rule, and
 tenant 2 and asserts a 404 whose `tenantId` is 2 — the honest answer, since
 tenant 2 has no profile. Tenant 1's behaviour is unchanged. **unit-tested**
 
-### API-5 (unit-tested) Config-change status is absent from the spec
+### API-5 (unit-tested) Config-change status was absent from the spec — FIXED
 
 `V10__configuration_versions.sql:37` constrains `status` to
 `PENDING`, `APPLIED`, `REJECTED`, `CANCELLED`. The console reads `status`, but
-`api/openapi.yaml:1802-1850` returns `OpsObject` and the `status` query
-parameter (`:1811-1817`) has no enum. The API cannot describe the values the
-database enforces. Fix with API-1.
+the endpoint returned `OpsObject`. `ConfigChange.status` is now an enum with
+those four values; the generated console type is the same union. **unit-tested**
 
 ### API-6 (unit-tested) Enums that do match
 
@@ -121,12 +130,14 @@ Checked by hand against migrations, Java constants and the spec:
 | audit outcome | `V1:259` | `AuditTrail.Outcome` | `:2132` (`ALL` is a filter) | equal |
 | ops role | `V3:20` | `OpsRole` | `:3010` | equal |
 | ops permission | n/a | `OpsPermission` | `:3015+` | equal |
-| break-glass review | `V11:25` | access code | `:2207` | equal |
-| cell type | `V1:111` | `CellValidator.CELL_TYPES` | `:2750` | **spec has no enum** |
-| tracking run state | `V9:72,76` | tracking code | none | **spec has no schema** |
-| config change status | `V10:37` | config code | none | **spec has no schema** |
+| break-glass review | `V11:25` | access code | `BreakGlassGrant.reviewStatus` | equal |
+| cell type | `V1:111` | `CellValidator.CELL_TYPES` | `CellType` | equal (now an enum) |
+| tracking run state | `V9:72,76` | tracking code | `TrackingRun.state` | equal (now a schema) |
+| config change status | `V10:37` | config code | `ConfigChange.status` | equal (now a schema) |
+| problem code | n/a | exception constructors | `ProblemCode` | equal (101, `ProblemCodeDriftTest`) |
 
-Fix the last three with API-1. **unit-tested**
+The last three rows were the “three missing enums” from the first audit; all are
+now named schemas and generated into the console. **unit-tested**
 
 ### API-7 (unit-tested) Documented endpoints that do not exist
 
@@ -412,6 +423,28 @@ None of these changes a protocol value to match code.
    segment (`/x/${id}${suffix}`) are collapsed to one `{}`. `${suffix}` is a query
    string appended in code, not a second segment; the old normaliser produced
    `/x/{}{}` and reported a false positive against the correct spec path.
+5. `api/openapi.yaml` — the 63 ops responses previously described as
+   `OpsObject` now name the record they serialise; the coarse response component
+   is deleted. `RangeKey`/`BucketKey`/`CellType` are named enums;
+   `ProblemCode` lists 101 codes. No route, parameter name or status code
+   changed apart from item 7.
+6. `api/openapi.yaml` — `POST /v1/ops/alerts/{id}/acknowledge` was documented as
+   `204 No Content`, but `OpsHealthController.acknowledge` returns the alert in
+   its new state. The spec was wrong, not the controller: the console needs the
+   new `acknowledgedAt` without a second round trip. The response is now
+   `200` with the `Alert` schema.
+7. `api/openapi.yaml` — `POST /v1/admin/cells/import` returned an untyped object
+   while `CellImportService.Report` is a record. Added `CellImportReport` and
+   `CellImportRowError`. Nothing about the import behaviour changed.
+8. `api/openapi.yaml` — `required` added for `OpsSessionView` and
+   `AdminClient` fields that are non-null in the record (including
+   `ipAllowlist`, which is an empty list, never absent). The old description
+   claiming the allowlist may be absent was removed.
+9. `gmlc-app/console/src/types.ts` is now generated; `Session` and
+   `DashboardData` moved to `console/src/ui.ts`. Imports were updated; no page
+   logic changed. `ApiError.code` is typed with `ProblemCode`.
+10. No test, fixture or spec value was loosened to make a gate pass. The
+    `SharedConstantsTest` note above still applies.
 
 A note on the fixtures: `SharedConstantsTest` requires every public numeric
 constant in `DiameterDictionary`, `Avp`, `MapLcs` and `Sccp` to be listed. That
@@ -423,7 +456,6 @@ is deliberate — a new constant cannot be added without a spec clause.
 
 These are not claimed done:
 
-- Generated TypeScript types and response-schema drift (API-1, API-2).
 - PAiCore 188-field CDR order (DB-2).
 - Adversarial cross-tenant isolation tests (DB-3).
 - Golden hex/JSON message fixtures, cross-language decode equality, `tshark`
@@ -443,15 +475,17 @@ These are not claimed done:
 1. ~~**Tenant isolation** — the `/v1/capabilities` defect (API-4).~~ Done in
    commit *Fix capabilities tenant isolation*; tenant comes from the API key and
    a two-tenant regression test covers it.
-2. **API schemas** — type every ops response, generate `console/src/types.ts`,
+2. ~~**API schemas** — type every ops response, generate `console/src/types.ts`,
    add the three missing enums, add a problem+json schema and a stable code
-   list tested against the Java enums and the console map.
-2. **Database** — commit the PAiCore CDR order fixture (or declare it out of
+   list tested against the Java enums and the console map.~~ Done in commit
+   *Type ops responses and generate console types* (`OpsPayloadDriftTest`,
+   `ProblemCodeDriftTest`, `TypesDriftTest`).
+3. **Database** — commit the PAiCore CDR order fixture (or declare it out of
    scope), add per-table cross-tenant tests, keep the snapshot gate.
-3. **Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
+4. **Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
    TBCD; add golden hex fixtures with spec clauses; move each fixed entry from
    `knownDivergences` into the enforced set.
-4. **Config** — add `config.schema.json`, generate `docs/PORTS.md`, fail CI on
+5. **Config** — add `config.schema.json`, generate `docs/PORTS.md`, fail CI on
    compose/`.env.example`/code drift, wire the GMLC compose to the core network.
-5. **Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures
+6. **Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures
    and tests; fail CI on gaps.
