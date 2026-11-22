@@ -3,6 +3,7 @@ package com.hamiltel.gmlc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.hamiltel.gmlc.capability.CapabilityProfileUnavailableException;
 import com.hamiltel.gmlc.capability.CapabilityService;
+import com.hamiltel.gmlc.client.ApiKeyHasher;
 import com.hamiltel.gmlc.support.EmbeddedPostgresSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -172,6 +175,29 @@ class GmlcApiTest {
     void anUnknownTenantHasNoCapabilities() {
         assertThatThrownBy(() -> capabilities.current(42))
                 .isInstanceOf(com.hamiltel.gmlc.capability.UnknownTenantException.class);
+    }
+
+    @Test
+    void capabilitiesUseTheAuthenticatedClientsTenant() {
+        // A client of tenant 2 must be answered as tenant 2, not as the
+        // deployment default. Tenant 2 has no profile, so the honest answer is
+        // 404 for tenant 2 - never tenant 1's bundled claims.
+        String key = "gk_" + "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+        UUID clientId = UUID.randomUUID();
+        jdbc.update("insert into tenant (tenant_id, name) values (2, 'Second tenant')");
+        jdbc.update("insert into api_client (client_id, tenant_id, name, key_hash, purposes)"
+                        + " values (?, 2, ?, ?, ARRAY['TEST'])",
+                clientId, "tenant-two", ApiKeyHasher.hash(key));
+        try {
+            ResponseEntity<JsonNode> response =
+                    EmbeddedPostgresSupport.get(rest, "/v1/capabilities", key);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(response.getBody().path("tenantId").asLong()).isEqualTo(2);
+        } finally {
+            jdbc.update("delete from client_usage where client_id = ?", clientId);
+            jdbc.update("delete from api_client where client_id = ?", clientId);
+            jdbc.update("delete from tenant where tenant_id = 2");
+        }
     }
 
     @Test

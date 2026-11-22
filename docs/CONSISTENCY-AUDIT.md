@@ -83,17 +83,19 @@ component; there is no dead client method. The legacy
 `gmlc-app/src/main/resources/static/dashboard.js` uses only the client Le API
 (five paths) and is covered by the same checker. **unit-tested**
 
-### API-4 (unit-tested) `/v1/capabilities` serves the default tenant
+### API-4 (unit-tested) `/v1/capabilities` served the default tenant — FIXED
 
-`CapabilityController.java:20-23` still says authentication “arrives with the
-Le API phase”, but `ApiKeyFilter` already authenticates this route.
-`CapabilityController.java:29` calls
-`capabilities.current(properties.defaultTenantId())` and ignores
-`@CurrentClient`. A client registered to tenant 2 therefore receives tenant 1's
-capability profile. This is both a stale comment and a tenant-isolation defect.
-Fix in the API boundary commit: take the tenant from `CurrentClient`, update the
-javadoc, add a two-tenant test. **unit-tested** (the defect is visible in code;
-the cross-tenant test does not exist yet)
+`CapabilityController.java:20-23` said authentication “arrives with the Le API
+phase”, but `ApiKeyFilter` already authenticates this route, and the controller
+called `capabilities.current(properties.defaultTenantId())`, ignoring
+`@CurrentClient`. A client registered to tenant 2 therefore received tenant 1's
+capability profile.
+
+Fixed in commit *Fix capabilities tenant isolation*: the controller takes the
+tenant from `@CurrentClient ApiClient`, the javadoc now states the rule, and
+`GmlcApiTest.capabilitiesUseTheAuthenticatedClientsTenant` registers a client on
+tenant 2 and asserts a 404 whose `tenantId` is 2 — the honest answer, since
+tenant 2 has no profile. Tenant 1's behaviour is unchanged. **unit-tested**
 
 ### API-5 (unit-tested) Config-change status is absent from the spec
 
@@ -367,10 +369,11 @@ real-network verification was found.
 The C7b figures come from the harness on this host, not from a production
 stack. They remain `lab-simulated`. The 700 rps target is not claimed.
 
-### DOC-3 (unit-tested) Stale capability comment
+### DOC-3 (unit-tested) Stale capability comment — FIXED
 
-`CapabilityController.java:20-23` describes a pre-authentication phase that no
-longer exists. Fixed with API-4.
+`CapabilityController.java` described a pre-authentication phase that no longer
+exists. The javadoc was rewritten with the API-4 fix and now says the tenant
+comes from the API key, never from a deployment default.
 
 ---
 
@@ -437,10 +440,12 @@ These are not claimed done:
 
 ## 9. Fix order (one boundary per commit)
 
-1. **API schemas** — type every ops response, generate `console/src/types.ts`,
-   fix `/v1/capabilities` tenant, add the three missing enums, add a
-   problem+json schema and a stable code list tested against the Java enums and
-   the console map.
+1. ~~**Tenant isolation** — the `/v1/capabilities` defect (API-4).~~ Done in
+   commit *Fix capabilities tenant isolation*; tenant comes from the API key and
+   a two-tenant regression test covers it.
+2. **API schemas** — type every ops response, generate `console/src/types.ts`,
+   add the three missing enums, add a problem+json schema and a stable code
+   list tested against the Java enums and the console map.
 2. **Database** — commit the PAiCore CDR order fixture (or declare it out of
    scope), add per-table cross-tenant tests, keep the snapshot gate.
 3. **Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
