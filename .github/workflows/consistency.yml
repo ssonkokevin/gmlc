@@ -41,6 +41,12 @@ jobs:
       - name: Configuration and ports match the schema
         run: python3 tools/check_config.py
 
+      # Every fixture clause must be carried by a requirement whose files and
+      # tests exist, and docs/TRACEABILITY.md must be the generated text. The
+      # core: references are skipped because that repository is not present.
+      - name: Every clause is traced to code and a test
+        run: python3 tools/check_traceability.py
+
       # The Python half of fixtures/constants.json and the Python decode of
       # fixtures/golden/slg.json need the core repository, which is not checked
       # out here. `make verify` enforces them in the combined workspace;

@@ -1,0 +1,472 @@
+{
+  "note": "One entry per requirement. clauses must cover every spec in fixtures/constants.json and fixtures/golden/*.json; code and tests are verified by tools/check_traceability.py, which also generates docs/TRACEABILITY.md. core: paths are relative to the 5g-core-engine repository.",
+  "requirements": [
+    {
+      "id": "API-CONTRACT",
+      "boundary": "api",
+      "summary": "gmlc/api/openapi.yaml is the contract; Java handlers and console types are checked against it.",
+      "clauses": [
+        "OpenAPI 3.1.0"
+      ],
+      "code": [
+        "api/openapi.yaml",
+        "gmlc-app/console/src/types.ts",
+        "gmlc-app/console/src/api.ts"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/ApiSpecDriftTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/TypesDriftTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/OpsPayloadDriftTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "API-ERRORS",
+      "boundary": "api",
+      "summary": "Every error is RFC 7807 problem+json with a code listed in the spec.",
+      "clauses": [
+        "RFC 7807 clause 3.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/web/LocationErrorHandler.java",
+        "api/openapi.yaml"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/ProblemCodeDriftTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "CFG-PORTS",
+      "boundary": "config",
+      "summary": "The 52-entry port register is checked against both composes and rendered into docs/PORTS.md.",
+      "clauses": [],
+      "code": [
+        "config.schema.json",
+        "docs/PORTS.md",
+        "docker-compose.yml"
+      ],
+      "fixture": null,
+      "tests": [
+        "tools/check_config.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "CFG-SCHEMA",
+      "boundary": "config",
+      "summary": "config.schema.json is the only declaration of the 61 variables; code, compose and .env.example are checked against it.",
+      "clauses": [],
+      "code": [
+        "config.schema.json",
+        "tools/check_config.py",
+        "gmlc-app/src/main/resources/application.yml"
+      ],
+      "fixture": null,
+      "tests": [
+        "tools/check_config.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "DB-CDR-FIELDS",
+      "boundary": "database",
+      "summary": "The CDR export column order is pinned by a fixture and the TS 32.299 clause.",
+      "clauses": [
+        "3GPP TS 32.299 clause 7.6.3"
+      ],
+      "code": [
+        "fixtures/cdr-fields.txt"
+      ],
+      "fixture": "fixtures/cdr-fields.txt",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/CdrFieldOrderTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "DB-MIGRATIONS",
+      "boundary": "database",
+      "summary": "Flyway V1..V11 is the only schema source; a migration-built database is snapshotted.",
+      "clauses": [],
+      "code": [
+        "gmlc-app/src/main/resources/db/migration",
+        "gmlc-app/src/main/resources/db/migration/V11__operator_access.sql"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SchemaSnapshotTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "DB-TENANT-ISOLATION",
+      "boundary": "database",
+      "summary": "A tenant sees only its own rows in every ops and capability query.",
+      "clauses": [],
+      "code": [
+        "gmlc-app/src/main/resources/db/migration"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/TenantIsolationTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-APPS",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.applicationIds matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.172 clause 5.2",
+        "3GPP TS 29.173 clause 5.2",
+        "3GPP TS 29.228 clause 6.1.1",
+        "3GPP TS 29.272 clause 5.2",
+        "3GPP TS 29.328 clause 5.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.applicationIds",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-AVPS",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.avps matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.4.1",
+        "3GPP TS 29.172 clause 7.4.10",
+        "3GPP TS 29.172 clause 7.4.11",
+        "3GPP TS 29.172 clause 7.4.12",
+        "3GPP TS 29.172 clause 7.4.13",
+        "3GPP TS 29.172 clause 7.4.15",
+        "3GPP TS 29.172 clause 7.4.16",
+        "3GPP TS 29.172 clause 7.4.19",
+        "3GPP TS 29.172 clause 7.4.2",
+        "3GPP TS 29.172 clause 7.4.20",
+        "3GPP TS 29.172 clause 7.4.3",
+        "3GPP TS 29.172 clause 7.4.4",
+        "3GPP TS 29.172 clause 7.4.5",
+        "3GPP TS 29.172 clause 7.4.6",
+        "3GPP TS 29.172 clause 7.4.7",
+        "3GPP TS 29.172 clause 7.4.8",
+        "3GPP TS 29.172 clause 7.4.9",
+        "3GPP TS 29.173 clause 7.4.1",
+        "3GPP TS 29.173 clause 7.4.10",
+        "3GPP TS 29.173 clause 7.4.11",
+        "3GPP TS 29.173 clause 7.4.12",
+        "3GPP TS 29.173 clause 7.4.2",
+        "3GPP TS 29.173 clause 7.4.3",
+        "3GPP TS 29.173 clause 7.4.4",
+        "3GPP TS 29.173 clause 7.4.5",
+        "3GPP TS 29.173 clause 7.4.6",
+        "3GPP TS 29.173 clause 7.4.7",
+        "3GPP TS 29.173 clause 7.4.8",
+        "3GPP TS 29.173 clause 7.4.9",
+        "3GPP TS 29.272 clause 7.3.102",
+        "3GPP TS 29.272 clause 7.3.117",
+        "3GPP TS 29.272 clause 7.3.118",
+        "3GPP TS 29.272 clause 7.3.119",
+        "3GPP TS 29.272 clause 7.3.122",
+        "3GPP TS 29.272 clause 7.3.7",
+        "3GPP TS 29.329 clause 6.3.2",
+        "3GPP TS 32.299 clause 7.6.3",
+        "RFC 6733 clause 5.3.3",
+        "RFC 6733 clause 5.3.6",
+        "RFC 6733 clause 5.3.7",
+        "RFC 6733 clause 6.1.3",
+        "RFC 6733 clause 6.1.4",
+        "RFC 6733 clause 6.6",
+        "RFC 6733 clause 7.1",
+        "RFC 6733 clause 7.3",
+        "RFC 6733 clause 7.6",
+        "RFC 6733 clause 8.1",
+        "RFC 6733 clause 8.11",
+        "RFC 6733 clause 8.16",
+        "RFC 6733 clause 8.8"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.avps",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-COMMANDS",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.commands matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.3.1",
+        "3GPP TS 29.172 clause 7.3.2",
+        "3GPP TS 29.173 clause 7.3.1",
+        "RFC 6733 clause 5.3",
+        "RFC 6733 clause 5.4",
+        "RFC 6733 clause 5.5"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.commands",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-ENUMS",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.enumerations matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.4.1",
+        "3GPP TS 29.172 clause 7.4.10",
+        "3GPP TS 29.172 clause 7.4.12",
+        "3GPP TS 32.299 clause 7.6.3",
+        "RFC 6733 clause 8.11"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.enumerations",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-HEADER",
+      "boundary": "signalling",
+      "summary": "Diameter message header is 20 octets and AVPs use the RFC 6733 4.1 layout with padding outside Length.",
+      "clauses": [
+        "RFC 6733 clause 3",
+        "RFC 6733 clause 4.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterMessage.java",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/Avp.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/golden/slg.json#slg-plr-request",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/diameter/DiameterMessageTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/diameter/AvpTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/GoldenSignallingTest.java#GoldenSignallingTest.everyGoldenFrameDecodesAndReEncodesByteForByte",
+        "core:tests/test_diameter_framing.py#AvpHeaderLayout",
+        "core:tests/test_diameter_codec.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-RESULTS",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.resultCodes matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.5.1",
+        "3GPP TS 29.172 clause 7.5.2",
+        "3GPP TS 29.172 clause 7.5.3",
+        "3GPP TS 29.172 clause 7.5.4",
+        "3GPP TS 29.172 clause 7.5.5",
+        "3GPP TS 29.172 clause 7.5.6",
+        "3GPP TS 29.172 clause 7.5.7",
+        "3GPP TS 29.272 clause 7.4.1",
+        "RFC 6733 clause 7.1.1",
+        "RFC 6733 clause 7.1.4"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.resultCodes",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-DIAMETER-VENDOR",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#diameter.vendorId matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.230 clause 6.1.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/DiameterDictionary.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#diameter.vendorId",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-M3UA-TRANSPORT",
+      "boundary": "signalling",
+      "summary": "M3UA messages and the lab TCP transport are unit-tested; the default port is the core's 2906.",
+      "clauses": [
+        "RFC 4666 clause 3"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/ss7/M3uaMessage.java",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/ss7/TcpM3uaTransport.java",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/ss7/M3uaProperties.java"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/ss7/M3uaMessageTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/ss7/M3uaTransportTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-MAP-CODEC",
+      "boundary": "signalling",
+      "summary": "MAP LCS messages use TS 29.002 opcodes over BER/TCAP; the locator chooses the right operation.",
+      "clauses": [
+        "3GPP TS 29.002 clause 25.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/map/Ber.java",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/map/Tcap.java",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/map/MapClient.java"
+      ],
+      "fixture": null,
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/map/BerTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/map/TcapTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/map/MapClientTest.java",
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/map/MapCellLocatorTest.java"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-MAP-OPCODES",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#map.opcodes matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.002 clause 25.1"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/map/MapLcs.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#map.opcodes",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-MAP-SSN",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#map.ssn matches its clause in both languages.",
+      "clauses": [
+        "3GPP TS 29.002 clause 20.4"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/ss7/Sccp.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#map.ssn",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-SCCP-UDT",
+      "boundary": "signalling",
+      "summary": "Every constant in fixtures/constants.json#map.sccpMessageTypes matches its clause in both languages.",
+      "clauses": [
+        "ITU-T Q.713 clause 4.2"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/ss7/Sccp.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/constants.json#map.sccpMessageTypes",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/SharedConstantsTest.java",
+        "tools/check_constants.py"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-SLG-PLA",
+      "boundary": "signalling",
+      "summary": "A Provide-Location-Answer from the MME decodes to the ECGI, accuracy and age the gateway reports.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.3.1",
+        "3GPP TS 29.172 clause 7.4.16"
+      ],
+      "code": [
+        "core:mme/src/slg.py",
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/SlgClient.java"
+      ],
+      "fixture": "fixtures/golden/slg.json#slg-pla-answer",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/GoldenSignallingTest.java#GoldenSignallingTest.everyGoldenFrameDecodesAndReEncodesByteForByte",
+        "core:tests/test_golden_slg.py#GoldenSlgFrames",
+        "core:tests/test_mme_location.py#SlgAvps"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-SLG-PLR",
+      "boundary": "signalling",
+      "summary": "A Provide-Location-Request encodes byte for byte in Java and Python and decodes to the same AVPs.",
+      "clauses": [
+        "3GPP TS 29.172 clause 7.3.1",
+        "3GPP TS 29.329 clause 6.3.2"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/SlgClient.java",
+        "core:mme/src/slg.py"
+      ],
+      "fixture": "fixtures/golden/slg.json#slg-plr-request",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/consistency/GoldenSignallingTest.java#GoldenSignallingTest.everyGoldenFrameDecodesAndReEncodesByteForByte",
+        "core:tests/test_golden_slg.py#GoldenSlgFrames"
+      ],
+      "state": "unit-tested"
+    },
+    {
+      "id": "SIG-TBCD",
+      "boundary": "signalling",
+      "summary": "MSISDN is TBCD (first digit low nibble, 0xF filler); decode refuses a non-digit semi-octet.",
+      "clauses": [
+        "3GPP TS 23.003 clause 3.3"
+      ],
+      "code": [
+        "gmlc-app/src/main/java/com/hamiltel/gmlc/diameter/Tbcd.java",
+        "core:corelib/diameter.py"
+      ],
+      "fixture": "fixtures/golden/slg.json#slg-plr-request",
+      "tests": [
+        "gmlc-app/src/test/java/com/hamiltel/gmlc/diameter/TbcdPlmnTest.java",
+        "core:tests/test_mme_location.py"
+      ],
+      "state": "unit-tested"
+    }
+  ]
+}

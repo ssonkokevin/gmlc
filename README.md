@@ -1102,6 +1102,10 @@ it passes is declared in `config.schema.json`; the host-port register and the
 environment reference are in [docs/PORTS.md](docs/PORTS.md), which
 `python tools/check_config.py --write-docs` regenerates.
 
+Each specification clause is tied to its code and test in
+[docs/TRACEABILITY.md](docs/TRACEABILITY.md), generated from
+`fixtures/traceability.json` and the clause fields of the other fixtures.
+
 Or against an existing PostgreSQL:
 
 ```bash

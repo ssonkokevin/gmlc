@@ -29,14 +29,20 @@ Evidence labels used on every finding:
 | CDR export order vs fixture | `mvn -o -pl gmlc-app test -Dtest=CdrFieldOrderTest` | 1/1 pass, 25 columns |
 | Cross-tenant isolation | `mvn -o -pl gmlc-app test -Dtest=TenantIsolationTest` | 5/5 pass, 17 tables |
 | Java constants vs fixture | same run as above (`SharedConstantsTest`) | 4/4 pass |
-| Python constants vs fixture | `py tools/check_constants.py --core-root ../5g-core-engine` | 45 match, 3 known-divergence warnings |
+| Python constants vs fixture | `py tools/check_constants.py --core-root ../5g-core-engine` | 64 match, 0 divergences |
+| Golden SLg frames (Java) | `mvn -o -pl gmlc-app test -Dtest=GoldenSignallingTest` | 1/1 pass, 2 frames byte-for-byte |
+| Golden SLg frames (Python) | `py -m unittest tests.test_golden_slg` (core) | 2 frames decode and re-encode |
+| Config and ports | `py tools/check_config.py --core-root ../5g-core-engine` | 61 variables, 52 ports |
+| Clause traceability | `py tools/check_traceability.py --core-root ../5g-core-engine` | 22 requirements, 77 clauses |
 
-The three gates failed first on real defects (two unquoted YAML descriptions, a
+The gates failed first on real defects (two unquoted YAML descriptions, a
 missing fixture entry, an auto-configured error controller, a false-positive
-path in the frontend checker). They pass now. The checks fail on drift by
-construction: see `ApiSpecDriftTest`, `SchemaSnapshotTest`,
-`SharedConstantsTest`, `tools/check-frontend-endpoints.mjs`,
-`tools/check_constants.py`.
+path in the frontend checker, an off-spec AVP header in three Python encoders).
+They pass now. The checks fail on drift by construction: see
+`ApiSpecDriftTest`, `SchemaSnapshotTest`, `SharedConstantsTest`,
+`GoldenSignallingTest`, `tools/check-frontend-endpoints.mjs`,
+`tools/check_constants.py`, `tools/check_config.py` and
+`tools/check_traceability.py`.
 
 ---
 
@@ -590,6 +596,12 @@ These are not claimed done:
   module was `py_compile`-checked.
 - The updated S6a/Cx and Ro framing is exercised by unit tests only; no
   Diameter peer was run against it on this host.
+- Traceability covers the clauses that are written down in
+  `fixtures/constants.json` and `fixtures/golden/`. A requirement that appears
+  in no fixture is invisible to the checker, and a clause can be claimed by a
+  requirement whose test proves something narrower. The index in
+  `docs/TRACEABILITY.md` shows which fixture each clause came from, so the gap
+  is visible even though it is not enforced.
 - GitHub Actions execution (workflow is committed, not yet run).
 - Any `verified on real network` claim: none exists.
 
@@ -626,5 +638,9 @@ These are not claimed done:
    `docs/PORTS.md` generated, compose passes every variable and joins
    `5g-core-engine_core-net`, SIG-5 default corrected to 2906. Docker itself is
    still unverified on this host.
-6. **Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures
-   and tests; fail CI on gaps.
+6. ~~**Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures
+   and tests; fail CI on gaps.~~ Done in the traceability commit:
+   `fixtures/traceability.json` has 22 requirements covering 77 clauses from 118
+   fixture entries; `tools/check_traceability.py` fails on an uncovered clause,
+   a missing file or symbol, an unreferenced gate test, or a stale document. It
+   runs in `make verify` and in CI.

@@ -9,11 +9,11 @@ SHELL := /bin/sh
 PYTHON ?= python3
 MVN ?= mvn
 
-.PHONY: verify verify-ci backend frontend console constants config golden
+.PHONY: verify verify-ci backend frontend console constants config golden traceability
 
-verify: backend frontend console constants config golden
+verify: backend frontend console constants config golden traceability
 
-verify-ci: backend frontend console config
+verify-ci: backend frontend console config traceability
 
 backend:
 	cd gmlc-app && $(MVN) -B test
@@ -38,3 +38,8 @@ config:
 # half runs inside `backend` (GoldenSignallingTest).
 golden:
 	cd ../5g-core-engine && $(PYTHON) -m unittest tests.test_golden_slg -v
+
+# Every clause in the fixtures must be named by a requirement that points at an
+# existing file and test, and docs/TRACEABILITY.md must be the generated text.
+traceability:
+	$(PYTHON) tools/check_traceability.py --core-root ../5g-core-engine
