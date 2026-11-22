@@ -217,61 +217,75 @@ second source of truth for the GMLC schema.
 Source of truth: `fixtures/constants.json`. Every entry names a specification
 clause. `SharedConstantsTest` reflects each Java field; `tools/check_constants.py`
 resolves each Python constant by import or by regex from the named file.
-Values that currently disagree are in `knownDivergences` and are warned, not
-enforced, until their boundary is fixed. **unit-tested** for the enforced set;
-**unchecked** where marked.
+`knownDivergences` is now empty: every listed value is enforced, and a drift on
+either side fails the gate. **unit-tested** for the enforced set; **unchecked**
+where marked.
 
-### SIG-1 (unit-tested) Sh application id is defined twice in the core
+### SIG-1 (unit-tested) FIXED — Sh application id is defined once in the core
 
-- `5g-core-engine/corelib/diameter.py:38` — `APP_SH = 16777217` (correct,
-  TS 29.328 clause 5.1).
-- `5g-core-engine/diameter/src/diameter_server.py:70` —
-  `APP_3GPP_Sh = 16777251` (the S6a value).
+The core held two values for Sh. `diameter_server.py` now imports both ids from
+corelib and aliases them, so the literal exists in one place:
 
-The same repository holds two values for Sh. The server file should import the
-corelib constant. Fix in the signalling commit; move the entry from
-`knownDivergences` to the enforced `applicationIds` array.
+```python
+from corelib.diameter import APP_S6A, APP_SH
+APP_3GPP_S6a = APP_S6A
+APP_3GPP_Sh = APP_SH     # 16777217 (TS 29.328 5.1), not the S6a value
+```
 
-### SIG-2 (unit-tested) MAP LCS opcodes: Java correct, Python disagrees and has no LCS
+`tests/test_signalling_auth.py:SignallingConstants` asserts
+`APP_3GPP_Sh == APP_SH == 16777217` and `APP_3GPP_S6a == APP_S6A`. Sh itself is
+still unimplemented; only the constant is now single-sourced.
 
-Java (`MapLcs.java:32-34`): PSL 83, SRILCS 85, ATI 71 (TS 29.002).
-Python (`map_sccp/src/map_sccp_server.py`) is an SMS server. It does not define
-PSL, SRILCS or SLR at all, and its same-named operations use wrong codes:
+### SIG-2 (unit-tested for opcodes; body unchecked) FIXED — MAP opcodes match TS 29.002
 
-| Operation | TS 29.002 | Python | Definitions |
-| --- | --- | --- | --- |
-| provideSubscriberInfo | 70 | 107 | 9 |
-| anyTimeInterrogation | 71 | 109 | 8 |
-| sendRoutingInfoForSM | 45 | 111 | 11 |
+The Python constants had invented codes and duplicate `_2`…`_7` variants. They
+are replaced by the TS 29.002 clause 25.1 values, and the fabricated block is
+deleted:
 
-The `_2`…`_7` variants each repeat the same operation with yet another code.
-Consequence: the GMLC's MAP LCS face has no Python peer. Fix in the signalling
-commit: correct the three SMS codes, and either add PSL/SRILCS/SLR or declare
-MAP LCS unsupported on the lab core in the boundary table.
+| Operation | TS 29.002 | Python constant |
+| --- | --- | --- |
+| provideSubscriberLocation (PSL) | 83 | `MAP_OP_PROVIDE_SUBSCRIBER_LOCATION` |
+| sendRoutingInfoForLCS | 85 | `MAP_OP_SEND_ROUTING_INFO_FOR_LCS` |
+| locationReport | 86 | `MAP_OP_LOCATION_REPORT` |
+| anyTimeInterrogation | 71 | `MAP_OP_ANY_TIME_INTERROGATION` |
+| provideSubscriberInfo | 70 | `MAP_OP_PROVIDE_SUBSCRIBER_INFO` |
+| sendRoutingInfoForSM | 45 | `MAP_OP_SEND_ROUTING_INFO_FOR_SM` |
+| sendAuthenticationInfo | 56 | `MAP_OP_SEND_AUTHENTICATION_INFO` |
+| insertSubscriberData | 7 | `MAP_OP_INSERT_SUBSCRIBER_DATA` |
+| provideRoamingNumber | 4 | `MAP_OP_PROVIDE_ROAMING_NUMBER` |
+| registerSS … interrogateSS | 10–14 | `MAP_OP_REGISTER_SS` … |
+| processUnstructuredSS-Request | 59 | `MAP_OP_PROCESS_UNSTRUCTURED_SS_REQUEST` |
 
-### SIG-3 (unit-tested) SCCP subsystem numbers are collapsed in Python
+`MAP_HANDLERS[83]` is now `handle_psl`, and `handle_psl` answers on 83. The
+**result body** `handle_psl` returns is still the lab placeholder (hard-coded
+`CELL-01`/`LAC-01` and invented tags); only opcode selection is claimed. No MAP
+golden frame is claimed for that reason (see SIG-8).
 
-Java (`Sccp.java:27-31`): HLR 6, VLR 7, MSC 8, SGSN 149, GMLC 145 (TS 23.003).
-Python (`map_sccp_server.py:51-54`): HLR 6, VLR 6, MSC 6, SCP 7. Routing to a
-VLR or MSC would use SSN 6. Fix in the signalling commit.
+### SIG-3 (unit-tested) FIXED — SCCP subsystem numbers match TS 29.002 clause 20.4
 
-### SIG-4 (unit-tested) MSISDN is TBCD on the Java side, UTF-8 on the Python side
+Python now defines HLR 6, VLR 7, MSC 8, SGSN 149, GMLC 145 distinct from each
+other, and every routing default uses `SCCP_SSN_HLR` instead of the catch-all
+`SCCP_SSN_MAP`. `SignallingConstants` asserts all five against the fixture.
 
-`SlgClient.java:47` and `SlhClient.java:36-39` send `MSISDN` (AVP 701) as TBCD
-(`Tbcd.encode`). `5g-core-engine/mme/src/slg.py:49-56` falls back to MSISDN and
-`corelib/diameter.py:146-147` decodes it with `utf-8`. If an IMSI is absent, the
-MME reads a corrupted identity. TS 29.329/29.002 define MSISDN as a TBCD
-OctetString; Python must TBCD-decode. Fix in the signalling commit.
+### SIG-4 (unit-tested, golden-checked) FIXED — MSISDN is TBCD on both sides
 
-### SIG-5 (unit-tested) M3UA/TCP default port cannot reach a lab peer
+The codec now lives once, in `corelib.diameter.tbcd_encode` / `tbcd_decode`
+(TS 23.003 §3.3: first digit in the low nibble, `0xF` filler on odd count).
+`lcsap.tbcd` delegates to it, so the SLg encoder in the MME and the SLg decoder
+in `mme/src/slg.py` cannot drift. `slg.subscriber` refuses an AVP above 8 octets
+— the longest TBCD E.164 number — instead of reading text digits as semi-octets.
+`fixtures/golden/slg.json` carries a 6-octet TBCD MSISDN and both codecs decode
+it to `256700000001`.
+
+### SIG-5 (unchecked) OPEN — M3UA/TCP default port cannot reach a lab peer
 
 `application.yml:56-64` defaults `gmlc.m3ua.port` to 2905 and the transport is
 M3UA over TCP (`TcpM3uaTransport`; the JVM has no SCTP provider).
 `5g-core-engine/docker-compose.yml:177-178` publishes 2905 as SCTP and UDP only;
 the TCP MAP listener is `map-sccp` at host 2906 → container 2905
 (`:274-275`). The default 2905/TCP therefore reaches nothing, and the only TCP
-MAP peer is the SMS-only server from SIG-2. Fix with the port register in
-phase 2.7 and a compose interop test.
+MAP peer is the SMS-only server from SIG-2. Owned by the configuration boundary:
+the port register and compose wiring, with an interop test, close it there.
 
 ### SIG-6 (unchecked) TCAP tags are labelled differently
 
@@ -295,13 +309,24 @@ is latent. It becomes a hard failure the day a Python TCAP peer is used.
   ECGI 7 octets (PLMN 3 + 28-bit ECI with zero spare nibble).
 - User-Name carries the IMSI on both SLh and SLg (`SlgClient.java:44`,
   `SlhClient.java:36`, `mme/src/slg.py:44-48`).
+- MSISDN AVP 701 is TBCD on both sides and pinned by the golden PLR frame
+  (`Tbcd.java`, `corelib/diameter.py:tbcd_encode`): both decode the same 6 octets
+  to `256700000001` and both re-encode it byte-for-byte.
 
-### SIG-8 (unchecked) No golden message fixtures
+### SIG-8 (unit-tested for Diameter; MAP unchecked) FIXED for SLg — golden message fixtures
 
-`fixtures/` contains only `constants.json`. There is no golden hex + JSON pair
-with a spec clause, so “both codecs decode the same bytes to the same values”
-is asserted only inside each language, not across them. `tshark` malformed
-checks and the pinned-commit compose interop test are also absent. Phase 2.3.
+`fixtures/golden/slg.json` holds two complete frames — a PLR request and a PLA
+answer — each with its spec clause and its decoded values. Both are checked in
+both directions by both languages:
+
+- Java: `GoldenSignallingTest` uses `DiameterMessage.parse` and asserts
+  `message.encode()` reproduces the bytes.
+- Python: `tests/test_golden_slg.py` builds the same message from
+  `corelib.diameter` and asserts `message.encode() == wire`, so the two codecs
+  are compared across languages, not only inside each one.
+
+Still open: a golden MAP frame (blocked by the placeholder PSL body, SIG-2),
+`tshark` malformed-message checks, and the pinned-commit compose interop test.
 
 ### SIG-9 (unchecked) SLh has no Python peer
 
@@ -309,10 +334,33 @@ checks and the pinned-commit compose interop test are also absent. Phase 2.3.
 answers SLg PLR (`mme/src/mme_server.py:209`). The GMLC SLh path is exercised
 against Java tests only; there is no Python HSS handler to cross-check.
 
+### SIG-10 (unit-tested) FIXED — Diameter AVP framing was off-spec in the Python encoders
+
+RFC 6733 clause 4.1: AVP Code four octets, AVP Flags one octet, AVP Length
+three octets. Three Python encoders were checked; two wrote a different layout:
+
+- `corelib/diameter.py:154-166` wrote `(code << 8) | flags` as one 32-bit word
+  and the length as a second 32-bit word — a three-octet code and a four-octet
+  length. Its decoder read the same shape, so Python↔Python round-trips passed.
+- `diameter/src/diameter_server.py:204-253` (S6a/Cx) wrote the same header and
+  omitted the four-octet alignment padding between AVPs.
+- `ocs/src/ocs_client.py:160-244` (Ro) wrote the same header, omitted padding,
+  always emitted a Vendor-Id even when the V bit was clear and counted it out of
+  the length, and built a 16-octet message header with no Version/Length fields.
+
+Java's `DiameterMessage.parse` reads the RFC layout, so a Java-built SLg frame
+reached the MME with no readable AVPs; the lab path had never been checked byte
+for byte. All three are now RFC-shaped, `corelib` is the reference, and
+`tests/test_diameter_framing.py` pins the literal header octets and asserts the
+three encoders produce identical bytes. This is why the golden fixture was
+regenerated (see §7 item 19): the first copy was produced by the off-spec
+encoder.
+
 ### Core-internal Sh
 
-The Sh duplicate in SIG-1 is core-internal (UDR↔HSS); the GMLC does not speak
-Sh. It still violates the one-source rule and is fixed in the core.
+Closed with SIG-1: the Sh duplicate is gone, the core imports `APP_SH` from
+corelib. The GMLC does not speak Sh; the UDR↔HSS face still has no Sh handler,
+which is unchanged and not claimed.
 
 ---
 
@@ -408,15 +456,15 @@ comes from the API key, never from a deployment default.
 
 | Interface | Java encoder | Python decoder | Status |
 | --- | --- | --- | --- |
-| SLg PLR/PLA | `SlgClient.java` | `mme/src/slg.py`, `mme/src/mme_server.py:209` | shape agrees; MSISDN fallback disagrees (SIG-4); **unit-tested** in each language only |
+| SLg PLR/PLA | `SlgClient.java` | `mme/src/slg.py`, `mme/src/mme_server.py:209` | shape and TBCD MSISDN agree; golden frames in both languages (**unit-tested**) |
 | SLh RIR/RIA | `SlhClient.java` | none | **unchecked** (SIG-9) |
-| MAP PSL/SRILCS/SLR | `MapClient.java`, `MapLcs.java` | none; SMS server only | **unchecked**, opcodes disagree (SIG-2) |
-| Sh UDR | not used by GMLC | core UDR/HSS | core-internal duplicate (SIG-1) |
+| MAP PSL/SRILCS/SLR | `MapClient.java`, `MapLcs.java` | `map_sccp_server.py` (opcode 83 → `handle_psl`) | opcodes agree (**unit-tested**); result body is a placeholder, no MAP golden frame (**unchecked**) |
+| Sh UDR | not used by GMLC | core UDR/HSS | constant single-sourced; no Sh handler in the core |
 | LCS-AP | not used (MME↔E-SMLC is core-internal) | `lib/codecs/lcsap.py` | out of the Java/Python boundary; core↔core |
-| Cell identity | ECGI/CGI decode, `SlgClient.java:87-113` | `mme/src/slg.py:ecgi` | 7 octets, PLMN then 28-bit ECI; agrees |
-| PLMN/ECGI/NCGI | `PlmnCodec`, `SlgClient` | `lcsap.LAB_PLMN`, `slg.ecgi` | agrees by inspection; no golden bytes (SIG-8) |
-| Shapes | TS 23.032 shape codec | `lcsap.Circle` | agrees by inspection; no cross-language fixture (SIG-8) |
-| Result codes | `DiameterResult` | `corelib.diameter` | fixture-enforced for the shared set |
+| Cell identity | ECGI/CGI decode, `SlgClient.java:87-113` | `mme/src/slg.py:ecgi` | 7 octets, PLMN then 28-bit ECI; agrees; covered by the golden PLR/PLA |
+| PLMN/ECGI/NCGI | `PlmnCodec`, `SlgClient` | `lcsap.LAB_PLMN`, `slg.ecgi` | golden bytes for the SLg pair (`00f110…`); NCGI/CGI still by inspection |
+| Shapes | TS 23.032 shape codec | `lcsap.Circle` | agrees by inspection; no cross-language fixture |
+| Result codes | `DiameterResult` | `corelib.diameter` | fixture-enforced for the shared set; Result-Code 2001 in the golden PLA |
 
 ---
 
@@ -475,7 +523,40 @@ None of these changes a protocol value to match code.
     new class changed timing. No assertion was changed or removed; the test now
     has one dispatcher instead of two.
 13. No test, fixture or spec value was loosened to make a gate pass. The
-    `SharedConstantsTest` note above still applies.
+    `SharedConstantsTest` note above still applies. The deliberate test changes
+    are items 14 and 15, and neither lowers a check.
+14. `5g-core-engine/tests/test_mme_location.py` — the two MSISDN tests sent the
+    number as text (`AVP_UTF8`). They now build AVP 701 as TBCD through the
+    shared codec, because TBCD is what the Java SLg encoder sends and what
+    TS 29.329/23.003 define. A third test asserts that a 12-octet UTF-8 MSISDN
+    is refused. The old tests asserted the behaviour that SIG-4 declared wrong.
+15. `Tbcd.decode` (Java) and `tbcd_decode` (Python) now reject a semi-octet that
+    is not a decimal digit and a `0xF` filler that is not in the last octet,
+    instead of reading them as digits. `TbcdPlmnTest` gains one test for the
+    refusal. This tightens both codecs; no valid number changes value.
+16. `5g-core-engine/corelib/diameter.py` — `tbcd_encode`/`tbcd_decode` are the
+    new single home for the TBCD codec; `lcsap.tbcd` delegates to it. The Java
+    `Tbcd` remains a separate implementation by necessity (different language),
+    and the golden PLR frame is what keeps the two byte-identical.
+17. `fixtures/constants.json` — the `map.opcodes` and `map.ssn` entries now have
+    Python references and every fixed value moved from `knownDivergences` to the
+    enforced arrays; `knownDivergences` is empty. A drift on either side now
+    fails instead of warning. No constant changed value to match code: the
+    Python constants were corrected to the TS 29.002 value already in the
+    fixture.
+18. `fixtures/golden/slg.json`, `GoldenSignallingTest` and
+    `tests/test_golden_slg.py` are new. They encode the same two frames from
+    scratch in each language and assert byte equality in both directions; the
+    fixture is committed, so edits to either codec that change the wire form
+    fail a gate.
+19. `fixtures/golden/slg.json` was regenerated once, immediately, because its
+    first copy had been produced by the Python AVP encoder before SIG-10 was
+    found: the hex was a valid frame of that encoder's own shape but not a valid
+    RFC 6733 frame, and `GoldenSignallingTest` failed on it (`expected AVP code
+    263, was 67392`). The decoded values, the specification clauses and the
+    message structure are unchanged; only the AVP and message framing octets
+    moved to the RFC layout, which is what the fixture is meant to pin. No test
+    was relaxed to achieve this.
 
 A note on the fixtures: `SharedConstantsTest` requires every public numeric
 constant in `DiameterDictionary`, `Avp`, `MapLcs` and `Sccp` to be listed. That
@@ -487,13 +568,21 @@ is deliberate — a new constant cannot be added without a spec clause.
 
 These are not claimed done:
 
-- Golden hex/JSON message fixtures, cross-language decode equality, `tshark`
-  malformed checks, pinned-commit compose interop (SIG-8).
-- Python SLh peer and MAP LCS peer (SIG-2, SIG-9).
+- Golden MAP frame (blocked by the placeholder PSL body), `tshark` malformed
+  checks, pinned-commit compose interop (SIG-8). The SLg golden pair is done.
+- Python SLh peer and MAP LCS peer (SIG-2 body, SIG-9).
 - TCAP tag interoperability (SIG-6).
 - Compose and Docker execution on a real host (CFG-4).
 - `make verify` execution on this Windows host (`make` is not installed); the
   individual commands above were run instead.
+- `tests/test_mme_location.py` and `tests/test_lcsap_codec.py` need
+  `pycrate_asn1rt`, which is not installed here. `py -m unittest discover -s
+  tests` runs 135 tests and reports 15 import errors from absent third-party
+  modules (`yaml`, `redis`, `pycrate_asn1rt`, ...) and 5 skips; there are no
+  test failures. The pycrate-free modules were run directly, and every changed
+  module was `py_compile`-checked.
+- The updated S6a/Cx and Ro framing is exercised by unit tests only; no
+  Diameter peer was run against it on this host.
 - GitHub Actions execution (workflow is committed, not yet run).
 - Any `verified on real network` claim: none exists.
 
@@ -515,9 +604,14 @@ These are not claimed done:
    `fixtures/cdr-fields.txt` + `CdrFieldOrderTest`, PAiCore is out of scope
    because no such interface exists, `TenantIsolationTest` covers 17 tables, and
    the snapshot gate is unchanged.
-4. **Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
+4. ~~**Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
    TBCD; add golden hex fixtures with spec clauses; move each fixed entry from
-   `knownDivergences` into the enforced set.
+   `knownDivergences` into the enforced set.~~ Done in the signalling-boundary
+   commits (one per repo): `APP_SH` imported from corelib, MAP opcodes and SSNs
+   set to TS 29.002, TBCD single-sourced in `corelib.diameter`, SLg golden pair
+   `fixtures/golden/slg.json` checked by `GoldenSignallingTest` and
+   `tests/test_golden_slg.py`, `knownDivergences` empty. MAP PSL body remains a
+   placeholder and is not claimed.
 5. **Config** — add `config.schema.json`, generate `docs/PORTS.md`, fail CI on
    compose/`.env.example`/code drift, wire the GMLC compose to the core network.
 6. **Traceability** — generate `docs/TRACEABILITY.md` from the spec, fixtures

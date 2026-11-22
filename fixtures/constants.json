@@ -592,19 +592,94 @@
         "name": "provideSubscriberLocation",
         "value": 83,
         "spec": "3GPP TS 29.002 clause 25.1 (provideSubscriberLocation opcode)",
-        "java": "MapLcs.OP_PROVIDE_SUBSCRIBER_LOCATION"
+        "java": "MapLcs.OP_PROVIDE_SUBSCRIBER_LOCATION",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_PROVIDE_SUBSCRIBER_LOCATION"
       },
       {
         "name": "sendRoutingInfoForLCS",
         "value": 85,
         "spec": "3GPP TS 29.002 clause 25.1 (sendRoutingInfoForLCS opcode)",
-        "java": "MapLcs.OP_SEND_ROUTING_INFO_FOR_LCS"
+        "java": "MapLcs.OP_SEND_ROUTING_INFO_FOR_LCS",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_SEND_ROUTING_INFO_FOR_LCS"
+      },
+      {
+        "name": "locationReport",
+        "value": 86,
+        "spec": "3GPP TS 29.002 clause 25.1 (locationReport opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_LOCATION_REPORT"
       },
       {
         "name": "anyTimeInterrogation",
         "value": 71,
         "spec": "3GPP TS 29.002 clause 25.1 (anyTimeInterrogation opcode)",
-        "java": "MapLcs.OP_ANY_TIME_INTERROGATION"
+        "java": "MapLcs.OP_ANY_TIME_INTERROGATION",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_ANY_TIME_INTERROGATION"
+      },
+      {
+        "name": "provideSubscriberInfo",
+        "value": 70,
+        "spec": "3GPP TS 29.002 clause 25.1 (provideSubscriberInfo opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_PROVIDE_SUBSCRIBER_INFO"
+      },
+      {
+        "name": "sendRoutingInfoForSM",
+        "value": 45,
+        "spec": "3GPP TS 29.002 clause 25.1 (sendRoutingInfoForSM opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_SEND_ROUTING_INFO_FOR_SM"
+      },
+      {
+        "name": "sendAuthenticationInfo",
+        "value": 56,
+        "spec": "3GPP TS 29.002 clause 25.1 (sendAuthenticationInfo opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_SEND_AUTHENTICATION_INFO"
+      },
+      {
+        "name": "insertSubscriberData",
+        "value": 7,
+        "spec": "3GPP TS 29.002 clause 25.1 (insertSubscriberData opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_INSERT_SUBSCRIBER_DATA"
+      },
+      {
+        "name": "provideRoamingNumber",
+        "value": 4,
+        "spec": "3GPP TS 29.002 clause 25.1 (provideRoamingNumber opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_PROVIDE_ROAMING_NUMBER"
+      },
+      {
+        "name": "registerSS",
+        "value": 10,
+        "spec": "3GPP TS 29.002 clause 25.1 (registerSS opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_REGISTER_SS"
+      },
+      {
+        "name": "eraseSS",
+        "value": 11,
+        "spec": "3GPP TS 29.002 clause 25.1 (eraseSS opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_ERASE_SS"
+      },
+      {
+        "name": "activateSS",
+        "value": 12,
+        "spec": "3GPP TS 29.002 clause 25.1 (activateSS opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_ACTIVATE_SS"
+      },
+      {
+        "name": "deactivateSS",
+        "value": 13,
+        "spec": "3GPP TS 29.002 clause 25.1 (deactivateSS opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_DEACTIVATE_SS"
+      },
+      {
+        "name": "interrogateSS",
+        "value": 14,
+        "spec": "3GPP TS 29.002 clause 25.1 (interrogateSS opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_INTERROGATE_SS"
+      },
+      {
+        "name": "processUnstructuredSSRequest",
+        "value": 59,
+        "spec": "3GPP TS 29.002 clause 25.1 (processUnstructuredSS-Request opcode)",
+        "python": "file:map_sccp/src/map_sccp_server.py#MAP_OP_PROCESS_UNSTRUCTURED_SS_REQUEST"
       }
     ],
     "ssn": [
@@ -619,25 +694,29 @@
         "name": "VLR",
         "value": 7,
         "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, VLR)",
-        "java": "Sccp.SSN_VLR"
+        "java": "Sccp.SSN_VLR",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_SSN_VLR"
       },
       {
         "name": "MSC",
         "value": 8,
         "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, MSC)",
-        "java": "Sccp.SSN_MSC"
+        "java": "Sccp.SSN_MSC",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_SSN_MSC"
       },
       {
         "name": "SGSN",
         "value": 149,
         "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, SGSN)",
-        "java": "Sccp.SSN_SGSN"
+        "java": "Sccp.SSN_SGSN",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_SSN_SGSN"
       },
       {
         "name": "GMLC",
         "value": 145,
         "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, GMLC)",
-        "java": "Sccp.SSN_GMLC"
+        "java": "Sccp.SSN_GMLC",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_SSN_GMLC"
       }
     ],
     "sccpMessageTypes": [
@@ -650,47 +729,5 @@
       }
     ]
   },
-  "knownDivergences": [
-    {
-      "boundary": "signalling",
-      "what": "Python MAP opcodes for LCS operations",
-      "spec": "3GPP TS 29.002 clause 25.1",
-      "expected": {
-        "provideSubscriberInfo": 70,
-        "sendRoutingInfoForLCS": 85,
-        "provideSubscriberLocation": 83,
-        "anyTimeInterrogation": 71
-      },
-      "javaActual": {
-        "provideSubscriberLocation": 83,
-        "sendRoutingInfoForLCS": 85,
-        "anyTimeInterrogation": 71
-      },
-      "pythonActual": {
-        "MAP_OP_PROVIDE_SUBSCRIBER_INFO": 107,
-        "MAP_OP_ANY_TIME_INTERROGATION": 109,
-        "MAP_OP_SEND_ROUTING_INFO_FOR_SM": 111
-      },
-      "pythonWhere": "map_sccp/src/map_sccp_server.py:93-97",
-      "note": "Python has no PSL/SRILCS/SLR opcodes and numbers PSI and ATI wrongly; Java has no PSI. Fixed in the MAP boundary commit."
-    },
-    {
-      "boundary": "signalling",
-      "what": "Python Sh application id",
-      "spec": "3GPP TS 29.328 clause 5.1",
-      "expected": 16777217,
-      "pythonActual": 16777251,
-      "pythonWhere": "diameter/src/diameter_server.py:70",
-      "note": "The same value as S6a is used for Sh in the legacy server; corelib.diameter.APP_SH is correct. Fixed in the Diameter boundary commit."
-    },
-    {
-      "boundary": "signalling",
-      "what": "Python SCCP subsystem numbers",
-      "spec": "3GPP TS 29.002 clause 20.4",
-      "expected": {"HLR": 6, "VLR": 7, "MSC": 8, "SGSN": 149, "GMLC": 145},
-      "pythonActual": {"SCCP_SSN_HLR": 6, "SCCP_SSN_VLR": 6, "SCCP_SSN_MSC": 6, "SCCP_SSN_SCP": 7},
-      "pythonWhere": "map_sccp/src/map_sccp_server.py:50-54",
-      "note": "VLR and MSC are collapsed onto 6 and the GMLC/SGSN SSNs are absent. Fixed in the MAP boundary commit."
-    }
-  ]
+  "knownDivergences": []
 }

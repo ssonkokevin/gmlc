@@ -29,15 +29,24 @@ public final class Tbcd {
 
     public static String decode(byte[] bytes) {
         StringBuilder digits = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            int low = b & 0x0F;
-            int high = (b >>> 4) & 0x0F;
-            if (low == 0xF) {
-                break;
+        for (int index = 0; index < bytes.length; index++) {
+            int low = bytes[index] & 0x0F;
+            int high = (bytes[index] >>> 4) & 0x0F;
+            if (low > 9) {
+                throw new IllegalArgumentException(
+                        "TBCD octet " + index + " has no digit in its low nibble (" + low + ")");
             }
             digits.append((char) ('0' + low));
             if (high == 0xF) {
+                if (index != bytes.length - 1) {
+                    throw new IllegalArgumentException(
+                            "TBCD filler at octet " + index + ", not the last octet");
+                }
                 break;
+            }
+            if (high > 9) {
+                throw new IllegalArgumentException(
+                        "TBCD octet " + index + " has no digit in its high nibble (" + high + ")");
             }
             digits.append((char) ('0' + high));
         }

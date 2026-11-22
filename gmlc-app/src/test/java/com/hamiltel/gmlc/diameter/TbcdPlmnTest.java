@@ -25,6 +25,14 @@ class TbcdPlmnTest {
     }
 
     @Test
+    void aSemiOctetThatIsNotADigitOrFinalFillerIsRefused() {
+        assertThatThrownBy(() -> Tbcd.decode(new byte[] {0x2A}))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Tbcd.decode(new byte[] {0x52, (byte) 0xF6, 0x00}))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void aTwoDigitMncSetsTheFillerNibble() {
         assertThat(PlmnCodec.encode("001", "01")).isEqualTo(new byte[] {0x00, (byte) 0xF1, 0x10});
     }

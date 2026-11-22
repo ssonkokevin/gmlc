@@ -1,0 +1,171 @@
+{
+ "note": "Golden Diameter frames. The gateway's Java encoder and the core's Python encoder must both reproduce the hex byte for byte, and both decoders must read the same values. Regenerate only with a specification change; the unit tests are the guard.",
+ "vectors": [
+  {
+   "name": "slg-plr-request",
+   "spec": [
+    "3GPP TS 29.172 clause 7.3.1 (Provide-Location-Request, PLR/PLA)",
+    "3GPP TS 29.329 clause 6.3.2 (MSISDN AVP 701 is TBCD octets)",
+    "RFC 6733 clause 3 (message header) and clause 4.1 (AVP padding)"
+   ],
+   "direction": "GMLC encodes, MME decodes",
+   "hex": "01000134c080000c010000270000a0010000b0010000010740000018676d6c633b676f6c64656e3b30303031000001154000000c000000010000010840000017676d6c632e636f72652e6c6f63616c000000012840000012636f72652e6c6f63616c000000000125400000166d6d652e636f72652e6c6f63616c00000000011b40000012636f72652e6c6f63616c0000000009c4c0000010000028af00000001000000014000001730303130313030303030303030303100000002bdc0000012000028af5276000000100000000009c5c000002c000028af000004d6c0000010000028af676d6c63000004d5c0000010000028af00000000000004d9c0000010000028af00000001000009c8c000002c000028af000009c9c0000010000028af0000001a000009cdc0000010000028af00000000",
+   "message": {
+    "command_code": 8388620,
+    "application_id": 16777255,
+    "flags": 192,
+    "hop_by_hop": 40961,
+    "end_to_end": 45057,
+    "avps": [
+     {
+      "code": 263,
+      "vendor_id": 0,
+      "value_utf8": "gmlc;golden;0001"
+     },
+     {
+      "code": 277,
+      "vendor_id": 0,
+      "value_u32": 1
+     },
+     {
+      "code": 264,
+      "vendor_id": 0,
+      "value_utf8": "gmlc.core.local"
+     },
+     {
+      "code": 296,
+      "vendor_id": 0,
+      "value_utf8": "core.local"
+     },
+     {
+      "code": 293,
+      "vendor_id": 0,
+      "value_utf8": "mme.core.local"
+     },
+     {
+      "code": 283,
+      "vendor_id": 0,
+      "value_utf8": "core.local"
+     },
+     {
+      "code": 2500,
+      "vendor_id": 10415,
+      "value_u32": 1
+     },
+     {
+      "code": 1,
+      "vendor_id": 0,
+      "value_utf8": "001010000000001"
+     },
+     {
+      "code": 701,
+      "vendor_id": 10415,
+      "value_hex": "527600000010",
+      "value_tbcd": "256700000001"
+     },
+     {
+      "code": 2501,
+      "vendor_id": 10415,
+      "children": [
+       {
+        "code": 1238,
+        "vendor_id": 10415,
+        "value_utf8": "gmlc"
+       },
+       {
+        "code": 1237,
+        "vendor_id": 10415,
+        "value_u32": 0
+       }
+      ]
+     },
+     {
+      "code": 1241,
+      "vendor_id": 10415,
+      "value_u32": 1
+     },
+     {
+      "code": 2504,
+      "vendor_id": 10415,
+      "children": [
+       {
+        "code": 2505,
+        "vendor_id": 10415,
+        "value_u32": 26
+       },
+       {
+        "code": 2509,
+        "vendor_id": 10415,
+        "value_u32": 0
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "slg-pla-answer",
+   "spec": [
+    "3GPP TS 29.172 clause 7.3.1 (Provide-Location-Answer)",
+    "3GPP TS 29.172 clause 7.4.16 (ECGI AVP 2517)",
+    "RFC 6733 clause 3 (message header) and clause 4.1 (AVP padding)"
+   ],
+   "direction": "MME encodes, GMLC decodes",
+   "hex": "010000c44080000c010000270000a0010000b0010000010740000018676d6c633b676f6c64656e3b3030303100000108400000166d6d652e636f72652e6c6f63616c00000000012840000012636f72652e6c6f63616c00000000012540000017676d6c632e636f72652e6c6f63616c000000011b40000012636f72652e6c6f63616c00000000010c4000000c000007d1000009d5c0000013000028af00f110000a1b2c00000009d1c0000010000028af00000000000009d2c0000010000028af00000005",
+   "message": {
+    "command_code": 8388620,
+    "application_id": 16777255,
+    "flags": 64,
+    "hop_by_hop": 40961,
+    "end_to_end": 45057,
+    "avps": [
+     {
+      "code": 263,
+      "vendor_id": 0,
+      "value_utf8": "gmlc;golden;0001"
+     },
+     {
+      "code": 264,
+      "vendor_id": 0,
+      "value_utf8": "mme.core.local"
+     },
+     {
+      "code": 296,
+      "vendor_id": 0,
+      "value_utf8": "core.local"
+     },
+     {
+      "code": 293,
+      "vendor_id": 0,
+      "value_utf8": "gmlc.core.local"
+     },
+     {
+      "code": 283,
+      "vendor_id": 0,
+      "value_utf8": "core.local"
+     },
+     {
+      "code": 268,
+      "vendor_id": 0,
+      "value_u32": 2001
+     },
+     {
+      "code": 2517,
+      "vendor_id": 10415,
+      "value_hex": "00f110000a1b2c"
+     },
+     {
+      "code": 2513,
+      "vendor_id": 10415,
+      "value_u32": 0
+     },
+     {
+      "code": 2514,
+      "vendor_id": 10415,
+      "value_u32": 5
+     }
+    ]
+   }
+  }
+ ]
+}

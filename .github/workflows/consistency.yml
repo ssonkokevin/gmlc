@@ -24,7 +24,7 @@ jobs:
 
       # Includes ApiSpecDriftTest, OpsPayloadDriftTest, ProblemCodeDriftTest,
       # TypesDriftTest, SchemaSnapshotTest, CdrFieldOrderTest,
-      # TenantIsolationTest and SharedConstantsTest. The
+      # TenantIsolationTest, SharedConstantsTest and GoldenSignallingTest. The
       # snapshot test starts embedded PostgreSQL; no Docker is required.
       - name: Backend tests
         run: cd gmlc-app && mvn -B test
@@ -35,9 +35,9 @@ jobs:
       - name: Console typecheck and build
         run: cd gmlc-app/console && npm ci && npm run build
 
-      # The Python half of fixtures/constants.json needs the core repository,
-      # which is not checked out here. It is enforced by `make verify` in the
-      # combined workspace; docs/CONSISTENCY-AUDIT.md records it as unchecked
-      # in Actions.
+      # The Python half of fixtures/constants.json and the Python decode of
+      # fixtures/golden/slg.json need the core repository, which is not checked
+      # out here. `make verify` enforces them in the combined workspace;
+      # docs/CONSISTENCY-AUDIT.md records them as unchecked in Actions.
       - name: Note the cross-repo step
-        run: echo "run 'make verify' with ../5g-core-engine present for the Python constants check"
+        run: echo "run 'make verify' with ../5g-core-engine present for the Python constants and golden-frame checks"
