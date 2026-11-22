@@ -49,6 +49,7 @@ The split is recorded with its reasoning in the core repository under
 | Break-glass: sealed deployment code, half-hour ADMIN elevation, review by a second administrator | **Built and tested** (phase C6b) |
 | Console Administration (configuration, users, four-eyes screens) | **Built and tested** (phase C6c) |
 | MLP 3.x standard location immediate over XML, on the same Le path | **Built and tested** (phase C7a); triggered reporting answers `108` |
+| Measured cell-ID throughput | **Measured on the build laptop** (phase C7b); the 700 req/s target is not met - see [docs/location/PERFORMANCE.md](docs/location/PERFORMANCE.md) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -1057,6 +1058,22 @@ Maven is offline-first on this workstation; see `BUILD-NOTES.md`.
 
 Tests start an embedded PostgreSQL (no Docker needed) and apply the real
 Flyway migrations before asserting anything.
+
+### Measured performance
+
+The load harness is excluded from the normal suite by its class name. It drives
+the real Le endpoint with a test-only positioning stub, so it measures the
+gateway's own cost (authentication, quota, consent, state machine, result, CDR,
+audit) and not a live HSS/MME exchange:
+
+```bash
+/c/tools/apache-maven-3.9.9/bin/mvn -o -DskipTests test-compile
+/c/tools/apache-maven-3.9.9/bin/mvn -o -Dtest=CellIdThroughputPerf \
+  -Dperf.concurrency=32 -Dperf.clients=1 -Dperf.seconds=10 test
+```
+
+The measured result, the controls that attribute it, and why the 700 req/s
+target is not claimed are in [docs/location/PERFORMANCE.md](docs/location/PERFORMANCE.md).
 
 ## Run
 
