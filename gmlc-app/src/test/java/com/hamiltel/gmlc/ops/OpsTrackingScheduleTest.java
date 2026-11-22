@@ -117,6 +117,10 @@ class OpsTrackingScheduleTest {
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         EmbeddedPostgresSupport.register(registry);
+        // Every dispatch in this class is called directly. The periodic runner
+        // can pick up the same due row between the manual call's SELECT and its
+        // UPDATE, which records a second run and makes the counts nondeterministic.
+        registry.add("gmlc.tracking.schedules-enabled", () -> "false");
     }
 
     @BeforeEach

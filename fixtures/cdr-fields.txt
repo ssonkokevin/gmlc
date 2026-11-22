@@ -1,0 +1,40 @@
+# Exchange CDR export: <csv column>=<ExchangeRow accessor>
+#
+# Source of truth for the 25-column CSV that
+# GET /v1/ops/exchanges/export.csv writes. The first 24 columns are the
+# operator-facing record; client_name is joined from api_client and the other
+# values come from the cdr row itself. CdrFieldOrderTest parses the header
+# literals and the row accessors out of OpsMonitoringController and compares
+# them with this list in order, so reordering one without the other fails.
+#
+# The 18-column CdrRow (CdrRepository.recent) is a different, narrower read
+# view and is deliberately not listed here.
+#
+# The PAiCore 188-field CDR order is out of scope: the GMLC has no PAiCore CDR
+# exchange interface, so there is no second format to pin. If one is added,
+# commit its field order as another fixture rather than widening this one.
+cdr_id=cdrId
+created_at=createdAt
+request_id=requestId
+client_id=clientId
+client_name=clientName
+protocol=protocol
+operation=operation
+record_status=recordStatus
+result_code=resultCode
+rat_type=rat
+positioning_method=method
+methods_attempted=methodsAttempted
+response_time_ms=responseTimeMs
+paging_performed=pagingPerformed
+serving_node=servingNode
+positioning_node=positioningNode
+uncertainty_m=uncertaintyM
+confidence=confidence
+age_of_location_s=ageSeconds
+accuracy_requested_m=accuracyRequestedM
+accuracy_achieved_m=accuracyAchievedM
+accuracy_fulfilled=accuracyFulfilled
+shape=shape
+latitude=latitude
+longitude=longitude

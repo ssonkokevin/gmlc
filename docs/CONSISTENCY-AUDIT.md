@@ -26,6 +26,8 @@ Evidence labels used on every finding:
 | Console types vs spec | `mvn -o -pl gmlc-app test -Dtest=TypesDriftTest` | 1/1 pass, 96 schemas |
 | Frontend paths vs spec | `node tools/check-frontend-endpoints.mjs` | 76 calls → 75 operations in 2 files |
 | Migrations vs snapshot | `mvn -o -pl gmlc-app test -Dtest=SchemaSnapshotTest` | 1/1 pass, 25 tables, 584 lines |
+| CDR export order vs fixture | `mvn -o -pl gmlc-app test -Dtest=CdrFieldOrderTest` | 1/1 pass, 25 columns |
+| Cross-tenant isolation | `mvn -o -pl gmlc-app test -Dtest=TenantIsolationTest` | 5/5 pass, 17 tables |
 | Java constants vs fixture | same run as above (`SharedConstantsTest`) | 4/4 pass |
 | Python constants vs fixture | `py tools/check_constants.py --core-root ../5g-core-engine` | 45 match, 3 known-divergence warnings |
 
@@ -162,25 +164,39 @@ the snapshot fails. Regeneration is documented in the test javadoc:
 `-Dgmlc.schema.snapshot=write`, then copy
 `gmlc-app/target/schema.snapshot.sql` into `gmlc-app/src/test/resources/`.
 
-### DB-2 (unchecked) No committed CDR field order
+### DB-2 (unit-tested) The CDR export order is now committed — FIXED
 
-`fixtures/cdr-fields.txt` does not exist in either repo, and neither repo
-contains the 188-field PAiCore CDR order. The GMLC CDR is its own 18-column
-record (`CdrRepository.java:111-129`): `cdr_id, request_id, result_code,
-record_status, rat_type, positioning_method, methods_attempted,
-accuracy_requested_m, accuracy_achieved_m, accuracy_fulfilled,
-response_time_ms, age_of_location_s, shape, latitude, longitude,
-uncertainty_m, confidence, created_at`. There is nothing to check it against.
-The PAiCore order must be committed as a fixture before this boundary can be
-called done; until then it is **unchecked**.
+The original finding conflated three different shapes. Corrected here:
 
-### DB-3 (unchecked) No adversarial tenant-isolation test
+- the `cdr` table has 28 columns: 26 in `V1:211-240` plus `protocol` and
+  `operation` from `V4:13-14`;
+- `CdrRepository.CdrRow` is an 18-column read view (`CdrRepository.java:111-129`);
+- the operator export at `GET /v1/ops/exchanges/export.csv` is 25 columns
+  (`OpsMonitoringController.java:137-151`), joining `client_name` and expanding
+  `methods_attempted` to a semicolon-joined string.
 
-Every repository query is tenant-scoped, and 16 test files touch tenants, but no
-test asserts that tenant B cannot read or mutate tenant A's request, CDR,
-geofence, subscription, tracked subject, config change, audit row or ops user.
-The SQL predicates exist; the negative case is not tested. Add per-table
-cross-tenant tests in phase 2.2. **unchecked**
+There is no PAiCore CDR interface in the GMLC, so the 188-field order has
+nothing to check against and is declared **out of scope**, not unchecked. If a
+PAiCore CDR exchange is added, its order becomes a second fixture.
+
+What is checked now: `fixtures/cdr-fields.txt` lists every export column with
+the `ExchangeRow` accessor that fills it, in order. `CdrFieldOrderTest` parses
+the header literals and the `row.*()` calls out of `exportExchanges` and
+compares both sequences, so reordering the header without the row (or the
+reverse) fails even though it still compiles. **unit-tested**
+
+### DB-3 (unit-tested) Cross-tenant reads and mutations — FIXED
+
+`TenantIsolationTest` seeds a dedicated tenant A and a second tenant B in the
+shared embedded database, then uses B's identity against every repository that
+takes a `tenant_id`. It covers 17 tables: location request/result, CDR, audit,
+geofence/arm/event, subscription/delivery, tracked subject, schedule/run,
+notification channel, alert, ops user and config item/change.
+
+Each case asserts both halves: B's read is empty or not-found, and B's mutation
+(`update`, `delete`, `setEnabled`, `advance`, `attachResult`, `acknowledge`,
+`decide`, `enqueue`) leaves A's row unchanged. The SQL predicates already had
+`tenant_id = ?`; the negative direction is what was missing. **unit-tested**
 
 ### DB-4 (unit-tested) No orphan columns
 
@@ -443,7 +459,22 @@ None of these changes a protocol value to match code.
 9. `gmlc-app/console/src/types.ts` is now generated; `Session` and
    `DashboardData` moved to `console/src/ui.ts`. Imports were updated; no page
    logic changed. `ApiError.code` is typed with `ProblemCode`.
-10. No test, fixture or spec value was loosened to make a gate pass. The
+10. `fixtures/cdr-fields.txt` is new and records the export order that already
+    existed in `OpsMonitoringController`. No code value changed; the fixture is
+    the reference the code is now checked against. The audit's earlier
+    “18-column CDR” sentence is corrected in §2 DB-2 (table 28, read view 18,
+    export 25); the code was not changed by that correction.
+11. `TenantIsolationTest` is new and adds no production code: every predicate it
+    exercises was already tenant-scoped. It uses tenants 9 100 001/2 so the
+    shared embedded database is not disturbed.
+12. `OpsTrackingScheduleTest` now sets `gmlc.tracking.schedules-enabled=false`.
+    Every dispatch in that class is called directly through
+    `TrackingScheduleService.dispatchDue`, but the periodic runner could claim
+    the same due row between the manual call's SELECT and UPDATE, recording a
+    second run. The full suite exposed this as `expected 3 but was 4` once the
+    new class changed timing. No assertion was changed or removed; the test now
+    has one dispatcher instead of two.
+13. No test, fixture or spec value was loosened to make a gate pass. The
     `SharedConstantsTest` note above still applies.
 
 A note on the fixtures: `SharedConstantsTest` requires every public numeric
@@ -456,8 +487,6 @@ is deliberate — a new constant cannot be added without a spec clause.
 
 These are not claimed done:
 
-- PAiCore 188-field CDR order (DB-2).
-- Adversarial cross-tenant isolation tests (DB-3).
 - Golden hex/JSON message fixtures, cross-language decode equality, `tshark`
   malformed checks, pinned-commit compose interop (SIG-8).
 - Python SLh peer and MAP LCS peer (SIG-2, SIG-9).
@@ -480,8 +509,12 @@ These are not claimed done:
    list tested against the Java enums and the console map.~~ Done in commit
    *Type ops responses and generate console types* (`OpsPayloadDriftTest`,
    `ProblemCodeDriftTest`, `TypesDriftTest`).
-3. **Database** — commit the PAiCore CDR order fixture (or declare it out of
-   scope), add per-table cross-tenant tests, keep the snapshot gate.
+3. ~~**Database** — commit the PAiCore CDR order fixture (or declare it out of
+   scope), add per-table cross-tenant tests, keep the snapshot gate.~~ Done in
+   the database-boundary commit: the 25-column export is pinned by
+   `fixtures/cdr-fields.txt` + `CdrFieldOrderTest`, PAiCore is out of scope
+   because no such interface exists, `TenantIsolationTest` covers 17 tables, and
+   the snapshot gate is unchanged.
 4. **Signalling** — fix the core Sh duplicate, MAP opcodes, SSNs and MSISDN
    TBCD; add golden hex fixtures with spec clauses; move each fixed entry from
    `knownDivergences` into the enforced set.

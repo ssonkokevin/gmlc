@@ -23,7 +23,8 @@ jobs:
           cache-dependency-path: gmlc-app/console/package-lock.json
 
       # Includes ApiSpecDriftTest, OpsPayloadDriftTest, ProblemCodeDriftTest,
-      # TypesDriftTest, SchemaSnapshotTest and SharedConstantsTest. The
+      # TypesDriftTest, SchemaSnapshotTest, CdrFieldOrderTest,
+      # TenantIsolationTest and SharedConstantsTest. The
       # snapshot test starts embedded PostgreSQL; no Docker is required.
       - name: Backend tests
         run: cd gmlc-app && mvn -B test
