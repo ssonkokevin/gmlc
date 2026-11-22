@@ -5,9 +5,11 @@ governance, the authoritative cell database, CDRs, and the signalling towards
 the HSS, MME, HLR and MSC/SGSN.
 
 It is a separate service from the core (`github.com/ssonkokevin/5gcore`, where
-the MME LCS function, E-SMLC and LMF live). The two talk over standard 3GPP
-interfaces only - SLh and SLg over Diameter, MAP for 2G/3G, and `Ngmlc_Location`
-over SBI - and share no code.
+the MME LCS function, E-SMLC and LMF live). The two are meant to talk over
+standard 3GPP interfaces only - SLh and SLg over Diameter, MAP for 2G/3G, and
+`Ngmlc_Location` over SBI - and share no code. This build implements SLh, SLg
+and MAP; the SBI interfaces (NL2 `Namf_Location`, NL5 NEF, NL6 `Nudm_UECM`) are
+listed in the console as NOT_BUILT and are not claimed.
 
 The split is recorded with its reasoning in the core repository under
 `docs/location/DECISIONS.md` (decisions D1-D17).
@@ -50,6 +52,8 @@ The split is recorded with its reasoning in the core repository under
 | Console Administration (configuration, users, four-eyes screens) | **Built and tested** (phase C6c) |
 | MLP 3.x standard location immediate over XML, on the same Le path | **Built and tested** (phase C7a); triggered reporting answers `108` |
 | Measured cell-ID throughput | **Measured on the build laptop** (phase C7b); the 700 req/s target is not met - see [docs/location/PERFORMANCE.md](docs/location/PERFORMANCE.md) |
+| 3GPP service labels on peers, NL1/NL2/NL5/NL6 interface list, SUPL stated as not implemented | **Built and tested** (phase C7c) |
+| Open questions for the operator, including the IPLOOK SLh/SLg/Lh/Lg profile | [docs/location/QUESTIONS.md](docs/location/QUESTIONS.md) - unanswered |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -193,7 +197,9 @@ curl -s -X POST localhost:8082/v1/admin/clients \
 The capability profile is the promise the API makes: which methods each RAT
 can use, which of those are actually built, and whether the network supports
 LPP, LPPa or NRPPA. A profile that fails validation is not served - the gateway
-answers 503 rather than claim a method it cannot deliver.
+answers 503 rather than claim a method it cannot deliver. The profile must also
+state whether SUPL is implemented; this build sets `supl.implemented` to false
+and has no SLP, no SET and no assist-data endpoint, so SUPL is never claimed.
 
 `X-Capability-Source: bundled|database` says where the served profile came
 from.
@@ -738,6 +744,13 @@ Screenshots from a local lab run with seeded rows and the `LAB_SIM` label:
 [the sign-in policy and role matrix](docs/location/console-users-policy.png),
 [break-glass with a cleared-after-submit code field](docs/location/console-users-break-glass.png),
 [the read-only API client register](docs/location/console-users-clients.png).
+
+The dashboard, Monitoring and Configuration network/reference/limits images were
+taken before phase C7c (the 3GPP service labels, the 5G interface list and the
+SUPL statement). They have not been re-shot: the lab environment file that held
+the throwaway console credentials is no longer present, and the seeded lab
+database cannot be signed in to without it. The code changes are covered by
+tests; the images are marked stale rather than replaced with a mock.
 
 ## The Le request path
 

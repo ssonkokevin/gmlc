@@ -175,7 +175,49 @@ class OpsAlertTest {
                     peer.get("face").asText() + " has no transport in this test");
             assertEquals("NOT_CONFIGURED", peer.get("state").asText());
             assertEquals(0, peer.get("attempts").asLong());
+            assertFalse(peer.get("service").asText().isBlank(),
+                    peer.get("face").asText() + " must name the 3GPP service it carries");
+            assertFalse(peer.get("bearer").asText().isBlank(),
+                    peer.get("face").asText() + " must name its bearer");
         }
+        JsonNode diameter = null;
+        for (JsonNode peer : body.get("peers")) {
+            if ("DIAMETER".equals(peer.get("face").asText())) {
+                diameter = peer;
+            }
+        }
+        assertNotNull(diameter);
+        assertEquals("SLh RIR / SLg PLR", diameter.get("service").asText());
+
+        JsonNode interfaces = body.get("interfaces");
+        assertEquals(4, interfaces.size(), "the 5G location interfaces are listed explicitly");
+        for (JsonNode face : interfaces) {
+            assertFalse(face.get("service").asText().isBlank());
+            assertFalse(face.get("note").asText().isBlank());
+        }
+        assertEquals("NOT_APPLICABLE", stateOf(interfaces, "NL1"));
+        assertEquals("NOT_BUILT", stateOf(interfaces, "NL2"));
+        assertEquals("Namf_Location", serviceOf(interfaces, "NL2"));
+        assertEquals("NOT_BUILT", stateOf(interfaces, "NL5"));
+        assertEquals("NOT_BUILT", stateOf(interfaces, "NL6"));
+    }
+
+    private static String stateOf(JsonNode interfaces, String label) {
+        for (JsonNode face : interfaces) {
+            if (label.equals(face.get("label").asText())) {
+                return face.get("state").asText();
+            }
+        }
+        throw new AssertionError("no interface labelled " + label);
+    }
+
+    private static String serviceOf(JsonNode interfaces, String label) {
+        for (JsonNode face : interfaces) {
+            if (label.equals(face.get("label").asText())) {
+                return face.get("service").asText();
+            }
+        }
+        throw new AssertionError("no interface labelled " + label);
     }
 
     @Test

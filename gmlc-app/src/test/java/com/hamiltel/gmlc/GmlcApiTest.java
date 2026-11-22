@@ -88,7 +88,7 @@ class GmlcApiTest {
         assertThat(body.path("database").asText()).isEqualTo("UP");
         assertThat(body.path("capabilities").asText()).isEqualTo("UP");
         assertThat(body.path("capabilitySource").asText()).isEqualTo("bundled");
-        assertThat(body.path("capabilityProfileVersion").asText()).isEqualTo("1.0.0");
+        assertThat(body.path("capabilityProfileVersion").asText()).isEqualTo("1.1.0");
     }
 
     @Test
@@ -101,7 +101,7 @@ class GmlcApiTest {
         JsonNode body = response.getBody();
         assertThat(body).isNotNull();
         assertThat(body.path("tenant_id").asLong()).isEqualTo(1);
-        assertThat(body.path("version").asText()).isEqualTo("1.0.0");
+        assertThat(body.path("version").asText()).isEqualTo("1.1.0");
         assertThat(body.path("rat").path("LTE").path("method_status").path("A_GNSS").asText())
                 .isEqualTo("PLANNED");
         assertThat(body.path("rat").path("NR").path("engine").asText()).isEqualTo("LMF");
@@ -120,6 +120,7 @@ class GmlcApiTest {
                   "NR":{"serving_node":"AMF","engine":"LMF","methods":["CELL_ID"],
                         "method_status":{"CELL_ID":"BUILT"}}},
                  "ati_allowed":false,"psi_allowed":false,"active_location_paging":false,
+                 "supl":{"implemented":false},
                  "plmns":[{"mcc":"001","mnc":"01"}]}
                 """;
         jdbc.update("insert into capability_profile (tenant_id, version, profile)"

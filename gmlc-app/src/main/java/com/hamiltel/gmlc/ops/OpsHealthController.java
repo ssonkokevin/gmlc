@@ -64,12 +64,34 @@ public class OpsHealthController {
     @GetMapping("/peers")
     @OpsRequires(OpsPermission.VIEW_DASHBOARD)
     public PeerPage peers(@OpsCurrentSession OpsContext context) {
-        PeerView diameterPeer = view(PeerHealth.DIAMETER, diameter.configured(),
+        PeerView diameterPeer = view(PeerHealth.DIAMETER, "SLh RIR / SLg PLR",
+                "Diameter over TCP", diameter.configured(),
                 diameter.peerHost(), diameter.peerPort());
-        PeerView m3uaPeer = view(PeerHealth.M3UA, m3ua.configured(),
+        PeerView m3uaPeer = view(PeerHealth.M3UA, "Lh / Lg (MAP)",
+                "M3UA / SCCP", m3ua.configured(),
                 m3ua.host(), m3ua.port());
         return new PeerPage(ops.normalisedEnvironment(), ops.dataSourceLabel(),
-                settings(context.tenantId()), List.of(diameterPeer, m3uaPeer));
+                settings(context.tenantId()), List.of(diameterPeer, m3uaPeer),
+                sbiInterfaces());
+    }
+
+    /**
+     * The 5G location service interfaces, listed so the console states which ones
+     * exist rather than leaving their absence to be inferred. None is built; the
+     * gateway's northbound interface is Le/MLP.
+     */
+    private static List<InterfaceView> sbiInterfaces() {
+        return List.of(
+                new InterfaceView("NL1", "AMF - LMF", "-", "NOT_APPLICABLE",
+                        "This gateway is not an LMF and does not pair with an AMF."),
+                new InterfaceView("NL2", "Namf_Location", "HTTP/2 over TLS (SBI)",
+                        "NOT_BUILT",
+                        "No service-based location request is sent or received."),
+                new InterfaceView("NL5", "NEF", "HTTP/2 over TLS (SBI)", "NOT_BUILT",
+                        "No NEF endpoint is hosted or consumed."),
+                new InterfaceView("NL6", "Nudm_UECM / Nudm_SDM",
+                        "HTTP/2 over TLS (SBI)", "NOT_BUILT",
+                        "Subscriber state is never fetched from a UDM."));
     }
 
     @GetMapping("/alerts")
@@ -127,14 +149,15 @@ public class OpsHealthController {
                 .orElseThrow(() -> new OpsNotFoundException("alert")));
     }
 
-    private PeerView view(String face, boolean configured, String host, int port) {
+    private PeerView view(String face, String service, String bearer, boolean configured,
+                          String host, int port) {
         if (!configured) {
-            return new PeerView(face, false, null, null, "NOT_CONFIGURED",
+            return new PeerView(face, service, bearer, false, null, null, "NOT_CONFIGURED",
                     0, 0, 0, 0, null, null, null, null);
         }
         PeerHealth.Snapshot snapshot = health.snapshot(face);
         String state = snapshot.attempts() == 0 ? "IDLE" : snapshot.failedLast() ? "DOWN" : "UP";
-        return new PeerView(face, true, host, port, state, snapshot.attempts(),
+        return new PeerView(face, service, bearer, true, host, port, state, snapshot.attempts(),
                 snapshot.successes(), snapshot.failures(), snapshot.consecutiveFailures(),
                 snapshot.lastAttemptAt(), snapshot.lastSuccessAt(), snapshot.lastFailureAt(),
                 snapshot.lastCode());
@@ -171,10 +194,15 @@ public class OpsHealthController {
 
     // ----------------------------------------------------------------- records
 
-    public record PeerView(String face, boolean configured, String host, Integer port,
-                           String state, long attempts, long successes, long failures,
-                           int consecutiveFailures, Instant lastAttemptAt,
-                           Instant lastSuccessAt, Instant lastFailureAt, String lastCode) {
+    public record PeerView(String face, String service, String bearer, boolean configured,
+                           String host, Integer port, String state, long attempts,
+                           long successes, long failures, int consecutiveFailures,
+                           Instant lastAttemptAt, Instant lastSuccessAt,
+                           Instant lastFailureAt, String lastCode) {
+    }
+
+    public record InterfaceView(String label, String service, String bearer, String state,
+                                String note) {
     }
 
     public record AlertSettings(boolean enabled, long evalSeconds, long windowMinutes,
@@ -184,7 +212,7 @@ public class OpsHealthController {
     }
 
     public record PeerPage(String environment, String dataSource, AlertSettings settings,
-                           List<PeerView> peers) {
+                           List<PeerView> peers, List<InterfaceView> interfaces) {
     }
 
     public record AlertView(long alertId, String dedupeKey, String kind, String severity,

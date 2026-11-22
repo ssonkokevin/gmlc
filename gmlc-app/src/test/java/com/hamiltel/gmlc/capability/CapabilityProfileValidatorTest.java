@@ -98,6 +98,35 @@ class CapabilityProfileValidatorTest {
     }
 
     @Test
+    void theBundledProfileSaysSuplIsNotImplemented() {
+        assertThat(profile.at("/supl/implemented").asBoolean()).isFalse();
+    }
+
+    @Test
+    void aProfileWithoutASuplStatementIsRejected() {
+        ((ObjectNode) profile).remove("supl");
+
+        assertThat(validator.validate(profile))
+                .anyMatch(error -> error.contains("supl must be an object"));
+    }
+
+    @Test
+    void aNonBooleanSuplFlagIsRejected() {
+        ((ObjectNode) profile.get("supl")).put("implemented", "no");
+
+        assertThat(validator.validate(profile))
+                .anyMatch(error -> error.contains("supl.implemented must be a boolean"));
+    }
+
+    @Test
+    void anUnknownSuplKeyIsRejected() {
+        ((ObjectNode) profile.get("supl")).put("server", "slp.example");
+
+        assertThat(validator.validate(profile))
+                .anyMatch(error -> error.contains("supl.server is not allowed"));
+    }
+
+    @Test
     void aNonObjectIsRejectedWithoutThrowing() {
         assertThat(validator.validate(null)).contains("profile must be a JSON object");
     }

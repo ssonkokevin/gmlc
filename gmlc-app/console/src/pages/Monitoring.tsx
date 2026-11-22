@@ -208,7 +208,7 @@ export function Monitoring(props: { session: Session; onExpired: () => void }) {
               <table className="data compact">
                 <caption className="visually-hidden">Live peer state</caption>
                 <thead>
-                  <tr><th scope="col">Face</th><th scope="col">State</th><th scope="col">Endpoint</th>
+                  <tr><th scope="col">Face</th><th scope="col">3GPP service</th><th scope="col">State</th><th scope="col">Endpoint</th>
                     <th scope="col">Attempts</th><th scope="col">Last exchange</th>
                     <th scope="col">Last code</th></tr>
                 </thead>
@@ -216,6 +216,7 @@ export function Monitoring(props: { session: Session; onExpired: () => void }) {
                   {peers.peers.map((peer) => (
                     <tr key={peer.face}>
                       <th scope="row">{peer.face}</th>
+                      <td>{peer.service}</td>
                       <td><StatusChip label={peer.state} tone={stateTone(peer.state)} /></td>
                       <td>{peer.host ? `${peer.host}:${peer.port}` : 'not configured'}</td>
                       <td>{fmtInt(peer.attempts)} attempt(s), {fmtInt(peer.failures)} failed</td>

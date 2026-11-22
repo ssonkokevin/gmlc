@@ -38,6 +38,7 @@ public class CapabilityProfileValidator {
     private static final Set<String> RAT_KEYS = Set.of(
             "serving_node", "engine", "methods", "method_status",
             "lpp", "lppa", "nrppa", "prs_configured", "trp_count", "notes");
+    private static final Set<String> SUPL_KEYS = Set.of("implemented", "notes");
 
     public List<String> validate(JsonNode profile) {
         List<String> errors = new ArrayList<>();
@@ -65,6 +66,30 @@ public class CapabilityProfileValidator {
         JsonNode accuracy = profile.get("max_accuracy_granted_m");
         if (accuracy != null && (!accuracy.isIntegralNumber() || accuracy.asLong() < 1)) {
             errors.add("max_accuracy_granted_m must be a positive integer");
+        }
+
+        // A profile must state whether SUPL is served. Silence would read as
+        // "supported", and this gateway has no SLP, so the field is required.
+        JsonNode supl = profile.get("supl");
+        if (supl == null || !supl.isObject()) {
+            errors.add("supl must be an object stating whether SUPL is implemented");
+        } else {
+            JsonNode implemented = supl.get("implemented");
+            if (implemented == null || !implemented.isBoolean()) {
+                errors.add("supl.implemented must be a boolean");
+            }
+            if (supl.has("notes")) {
+                JsonNode notes = supl.get("notes");
+                if (!notes.isTextual() || notes.asText().length() > 1000) {
+                    errors.add("supl.notes must be text of at most 1000 characters");
+                }
+            }
+            for (Iterator<String> it = supl.fieldNames(); it.hasNext(); ) {
+                String key = it.next();
+                if (!SUPL_KEYS.contains(key)) {
+                    errors.add("supl." + key + " is not allowed");
+                }
+            }
         }
 
         JsonNode plmns = profile.get("plmns");

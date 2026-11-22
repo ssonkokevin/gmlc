@@ -101,6 +101,8 @@ export interface Mix {
 
 export interface Peer {
   face: string;
+  service: string;
+  bearer: string;
   configured: boolean;
   host?: string;
   port?: number;
@@ -113,6 +115,14 @@ export interface Peer {
   lastSuccessAt?: string;
   lastFailureAt?: string;
   lastCode?: string;
+}
+
+export interface ServiceInterface {
+  label: string;
+  service: string;
+  bearer: string;
+  state: 'NOT_APPLICABLE' | 'NOT_BUILT' | 'BUILT';
+  note: string;
 }
 
 export interface AlertSettings {
@@ -131,6 +141,7 @@ export interface PeerPage {
   dataSource: string;
   settings: AlertSettings;
   peers: Peer[];
+  interfaces: ServiceInterface[];
 }
 
 export interface Alert {

@@ -1,7 +1,7 @@
 {
   "tenant_id": 1,
-  "version": "1.0.0",
-  "updated_at": "2026-11-21T00:00:00Z",
+  "version": "1.1.0",
+  "updated_at": "2026-11-22T00:00:00Z",
   "rat": {
     "GSM": {
       "serving_node": "MSC/SGSN",
@@ -55,6 +55,10 @@
   "active_location_paging": false,
   "emergency_override": false,
   "max_accuracy_granted_m": 5000,
+  "supl": {
+    "implemented": false,
+    "notes": "Not implemented. This service has no SLP, no SET and no assist-data endpoint, and SUPL is not on the roadmap. Do not claim SUPL support."
+  },
   "plmns": [{ "mcc": "001", "mnc": "01" }],
   "notes": "Lab profile for tenant 1. Every PLANNED method is unproven until its phase exit test passes; do not quote these numbers in a commercial document."
 }

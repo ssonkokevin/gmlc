@@ -585,6 +585,8 @@ export function Configuration(props: { session: Session; onExpired: () => void }
                     <thead>
                       <tr>
                         <th scope="col">Face</th>
+                        <th scope="col">3GPP service</th>
+                        <th scope="col">Bearer</th>
                         <th scope="col">Endpoint</th>
                         <th scope="col">Configured</th>
                         <th scope="col">State</th>
@@ -599,6 +601,8 @@ export function Configuration(props: { session: Session; onExpired: () => void }
                       {peers.peers.map((peer) => (
                         <tr key={peer.face}>
                           <td><strong>{peer.face}</strong></td>
+                          <td>{peer.service}</td>
+                          <td>{peer.bearer}</td>
                           <td className="mono">
                             {peer.host ? `${peer.host}${peer.port ? `:${peer.port}` : ''}` : '—'}
                           </td>
@@ -627,6 +631,41 @@ export function Configuration(props: { session: Session; onExpired: () => void }
                   {peers.settings.sloP95Ms ? `, p95 objective ${peers.settings.sloP95Ms} ms` : ', no p95 objective agreed'}.
                 </p>
               </>
+            )}
+          </Panel>
+
+          <Panel title="5G location service interfaces"
+            subtitle="Named next to the 3GPP service they carry. Only the Le/MLP northbound is built.">
+            {!canViewPeers ? (
+              <p className="note">VIEW_DASHBOARD is required to read the interface list.</p>
+            ) : peers === null ? (
+              <p className="empty">No interface list was returned.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data compact">
+                  <thead>
+                    <tr>
+                      <th scope="col">Interface</th>
+                      <th scope="col">3GPP service</th>
+                      <th scope="col">Bearer</th>
+                      <th scope="col">State</th>
+                      <th scope="col">What that means</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {peers.interfaces.map((row) => (
+                      <tr key={row.label}>
+                        <td><strong>{row.label}</strong></td>
+                        <td>{row.service}</td>
+                        <td>{row.bearer}</td>
+                        <td><StatusChip label={row.state === 'BUILT' ? 'BUILT' : row.state === 'NOT_APPLICABLE' ? 'N/A' : 'NOT BUILT'}
+                          tone={row.state === 'BUILT' ? 'good' : row.state === 'NOT_APPLICABLE' ? 'neutral' : 'warn'} /></td>
+                        <td>{row.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </Panel>
 
@@ -769,7 +808,10 @@ export function Configuration(props: { session: Session; onExpired: () => void }
                 CELL_ID as the fallback whenever an engine is named. This build answers Cell-ID
                 only, so a profile that promises anything else would be a claim the gateway cannot
                 keep. The administration endpoint that edits a profile is not built; this screen
-                therefore shows no profile rather than inventing one.
+                therefore shows no profile rather than inventing one. The bundled profile states
+                <span className="mono"> supl.implemented: false </span> and the validator refuses a
+                profile that is silent on it: this service has no SLP, no SET and no assist-data
+                endpoint, so SUPL is not implemented.
               </p>
             </Panel>
             <Panel title="What this gateway can say today"
@@ -778,6 +820,7 @@ export function Configuration(props: { session: Session; onExpired: () => void }
                 <li>Cell-ID from a stored plan row, with the plan radius carried as uncertainty.</li>
                 <li>E-CID, OTDOA, A-GNSS, U-TDOA, E-OTD and TDOA are not implemented.</li>
                 <li>No E-SMLC is present. Building one is out of scope for this roadmap.</li>
+                <li>SUPL is not implemented: there is no SLP, no SET and no assist-data endpoint.</li>
                 <li>A request that asks for a method the deployment lacks says so; it does not fall back silently to a different claim.</li>
               </ul>
             </Panel>
@@ -824,6 +867,7 @@ export function Configuration(props: { session: Session; onExpired: () => void }
               <li>No route, realm or service-discovery editor: those come from deployment settings and a restart.</li>
               <li>No cell import or per-cell override: both need the deployment admin key and a separate workflow.</li>
               <li>No retention schedule and no licence installer.</li>
+              <li>No SUPL server or assist-data endpoint; the profile says <span className="mono">implemented: false</span>.</li>
               <li>No capability-profile editor; a profile that cannot be honoured is not shown as if it were in force.</li>
             </ul>
           </Panel>
