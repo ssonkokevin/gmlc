@@ -1,0 +1,41 @@
+name: consistency
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: gmlc-app/console/package-lock.json
+
+      # Includes ApiSpecDriftTest, SchemaSnapshotTest and SharedConstantsTest.
+      # The snapshot test starts embedded PostgreSQL; no Docker is required.
+      - name: Backend tests
+        run: cd gmlc-app && mvn -B test
+
+      - name: Frontend paths match the spec
+        run: node tools/check-frontend-endpoints.mjs
+
+      - name: Console typecheck and build
+        run: cd gmlc-app/console && npm ci && npm run build
+
+      # The Python half of fixtures/constants.json needs the core repository,
+      # which is not checked out here. It is enforced by `make verify` in the
+      # combined workspace; docs/CONSISTENCY-AUDIT.md records it as unchecked
+      # in Actions.
+      - name: Note the cross-repo step
+        run: echo "run 'make verify' with ../5g-core-engine present for the Python constants check"

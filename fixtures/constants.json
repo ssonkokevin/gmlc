@@ -1,0 +1,696 @@
+{
+  "note": "Cross-repo protocol constants. This file is the source of truth for values that both the Java gateway and the Python core must agree on. Every entry names the specification clause it comes from. Java fields are checked by SharedConstantsTest; Python constants are checked by tools/check_constants.py. Entries without a 'java' or 'python' key are recorded for the side that owns them only. Known disagreements are listed in knownDivergences and are deliberately NOT enforced until the owning boundary is fixed; docs/CONSISTENCY-AUDIT.md names each one.",
+  "diameter": {
+    "vendorId": [
+      {
+        "name": "3GPP",
+        "value": 10415,
+        "spec": "3GPP TS 29.230 clause 6.1.1 (3GPP Vendor-Id)",
+        "java": "Avp.THREE_GPP",
+        "python": "corelib.diameter.VENDOR_3GPP"
+      }
+    ],
+    "applicationIds": [
+      {
+        "name": "SLh",
+        "value": 16777291,
+        "spec": "3GPP TS 29.173 clause 5.2 (SLh application identifier)",
+        "java": "DiameterDictionary.SLH_APPLICATION_ID",
+        "python": "corelib.diameter.APP_SLH"
+      },
+      {
+        "name": "SLg",
+        "value": 16777255,
+        "spec": "3GPP TS 29.172 clause 5.2 (SLg application identifier)",
+        "java": "DiameterDictionary.SLG_APPLICATION_ID",
+        "python": "corelib.diameter.APP_SLG"
+      },
+      {
+        "name": "Sh",
+        "value": 16777217,
+        "spec": "3GPP TS 29.328 clause 5.1 (Sh application identifier)",
+        "python": "corelib.diameter.APP_SH"
+      },
+      {
+        "name": "S6a",
+        "value": 16777251,
+        "spec": "3GPP TS 29.272 clause 5.2 (S6a/S6d application identifier)",
+        "python": "corelib.diameter.APP_S6A"
+      },
+      {
+        "name": "Cx",
+        "value": 16777216,
+        "spec": "3GPP TS 29.228 clause 6.1.1 (Cx application identifier)",
+        "python": "corelib.diameter.APP_CX"
+      }
+    ],
+    "commands": [
+      {
+        "name": "Provide-Location",
+        "value": 8388620,
+        "spec": "3GPP TS 29.172 clause 7.3.1 (PLR/PLA command code)",
+        "java": "DiameterDictionary.PROVIDE_LOCATION",
+        "python": "corelib.diameter.CMD_PLR"
+      },
+      {
+        "name": "Location-Report",
+        "value": 8388621,
+        "spec": "3GPP TS 29.172 clause 7.3.2 (LRR/LRA command code)",
+        "java": "DiameterDictionary.LOCATION_REPORT",
+        "python": "corelib.diameter.CMD_LRR"
+      },
+      {
+        "name": "LCS-Routing-Info",
+        "value": 8388622,
+        "spec": "3GPP TS 29.173 clause 7.3.1 (RIR/RIA command code)",
+        "java": "DiameterDictionary.LCS_ROUTING_INFO",
+        "python": "corelib.diameter.CMD_RIR"
+      },
+      {
+        "name": "Capabilities-Exchange",
+        "value": 257,
+        "spec": "RFC 6733 clause 5.3 (Capabilities-Exchange-Request/Answer)",
+        "java": "DiameterDictionary.CAPABILITIES_EXCHANGE",
+        "python": "corelib.diameter.CMD_CAPABILITIES_EXCHANGE"
+      },
+      {
+        "name": "Capabilities-Exchange-Answer",
+        "value": 257,
+        "spec": "RFC 6733 clause 5.3 (CEA reuses the CER command code; the answer is flagged by the R bit, not a distinct code)",
+        "java": "DiameterDictionary.CAPABILITIES_EXCHANGE_ANSWER"
+      },
+      {
+        "name": "Device-Watchdog",
+        "value": 280,
+        "spec": "RFC 6733 clause 5.4 (Device-Watchdog-Request/Answer)",
+        "python": "corelib.diameter.CMD_DEVICE_WATCHDOG"
+      },
+      {
+        "name": "Disconnect-Peer",
+        "value": 282,
+        "spec": "RFC 6733 clause 5.5 (Disconnect-Peer-Request/Answer)",
+        "python": "corelib.diameter.CMD_DISCONNECT_PEER"
+      }
+    ],
+    "avps": [
+      {
+        "name": "User-Name",
+        "value": 1,
+        "spec": "RFC 6733 clause 8.1 (User-Name AVP)",
+        "java": "DiameterDictionary.USER_NAME",
+        "python": "corelib.diameter.AVP_USER_NAME"
+      },
+      {
+        "name": "Host-IP-Address",
+        "value": 257,
+        "spec": "RFC 6733 clause 5.3.7 (Host-IP-Address AVP)",
+        "java": "DiameterDictionary.HOST_IP_ADDRESS"
+      },
+      {
+        "name": "Auth-Application-Id",
+        "value": 258,
+        "spec": "RFC 6733 clause 6.1.3 (Auth-Application-Id AVP)",
+        "java": "DiameterDictionary.AUTH_APPLICATION_ID"
+      },
+      {
+        "name": "Vendor-Specific-Application-Id",
+        "value": 260,
+        "spec": "RFC 6733 clause 6.1.4 (Vendor-Specific-Application-Id AVP)",
+        "java": "DiameterDictionary.VENDOR_SPECIFIC_APPLICATION_ID",
+        "python": "corelib.diameter.AVP_VENDOR_SPECIFIC_APPLICATION_ID"
+      },
+      {
+        "name": "Session-Id",
+        "value": 263,
+        "spec": "RFC 6733 clause 8.8 (Session-Id AVP)",
+        "java": "DiameterDictionary.SESSION_ID",
+        "python": "corelib.diameter.AVP_SESSION_ID"
+      },
+      {
+        "name": "Origin-Host",
+        "value": 264,
+        "spec": "RFC 6733 clause 6.1.3 (Origin-Host AVP)",
+        "java": "DiameterDictionary.ORIGIN_HOST",
+        "python": "corelib.diameter.AVP_ORIGIN_HOST"
+      },
+      {
+        "name": "Supported-Vendor-Id",
+        "value": 265,
+        "spec": "RFC 6733 clause 5.3.6 (Supported-Vendor-Id AVP)",
+        "java": "DiameterDictionary.SUPPORTED_VENDOR_ID",
+        "python": "corelib.diameter.AVP_SUPPORTED_VENDOR_ID"
+      },
+      {
+        "name": "Vendor-Id",
+        "value": 266,
+        "spec": "RFC 6733 clause 6.1.4 (Vendor-Id AVP)",
+        "java": "DiameterDictionary.VENDOR_ID",
+        "python": "corelib.diameter.AVP_VENDOR_ID"
+      },
+      {
+        "name": "Firmware-Revision",
+        "value": 267,
+        "spec": "RFC 6733 clause 5.3.3 (Firmware-Revision AVP)",
+        "java": "DiameterDictionary.FIRMWARE_REVISION",
+        "python": "corelib.diameter.AVP_FIRMWARE_REVISION"
+      },
+      {
+        "name": "Result-Code",
+        "value": 268,
+        "spec": "RFC 6733 clause 7.1 (Result-Code AVP)",
+        "java": "DiameterDictionary.RESULT_CODE",
+        "python": "corelib.diameter.AVP_RESULT_CODE"
+      },
+      {
+        "name": "Product-Name",
+        "value": 269,
+        "spec": "RFC 6733 clause 5.3.7 (Product-Name AVP)",
+        "java": "DiameterDictionary.PRODUCT_NAME",
+        "python": "corelib.diameter.AVP_PRODUCT_NAME"
+      },
+      {
+        "name": "Origin-State-Id",
+        "value": 278,
+        "spec": "RFC 6733 clause 8.16 (Origin-State-Id AVP)",
+        "java": "DiameterDictionary.ORIGIN_STATE_ID",
+        "python": "corelib.diameter.AVP_ORIGIN_STATE_ID"
+      },
+      {
+        "name": "Error-Message",
+        "value": 281,
+        "spec": "RFC 6733 clause 7.3 (Error-Message AVP)",
+        "java": "DiameterDictionary.ERROR_MESSAGE",
+        "python": "corelib.diameter.AVP_ERROR_MESSAGE"
+      },
+      {
+        "name": "Destination-Realm",
+        "value": 283,
+        "spec": "RFC 6733 clause 6.6 (Destination-Realm AVP)",
+        "java": "DiameterDictionary.DESTINATION_REALM",
+        "python": "corelib.diameter.AVP_DESTINATION_REALM"
+      },
+      {
+        "name": "Destination-Host",
+        "value": 293,
+        "spec": "RFC 6733 clause 6.6 (Destination-Host AVP)",
+        "java": "DiameterDictionary.DESTINATION_HOST",
+        "python": "corelib.diameter.AVP_DESTINATION_HOST"
+      },
+      {
+        "name": "Origin-Realm",
+        "value": 296,
+        "spec": "RFC 6733 clause 6.1.3 (Origin-Realm AVP)",
+        "java": "DiameterDictionary.ORIGIN_REALM",
+        "python": "corelib.diameter.AVP_ORIGIN_REALM"
+      },
+      {
+        "name": "Experimental-Result",
+        "value": 297,
+        "spec": "RFC 6733 clause 7.6 (Experimental-Result AVP)",
+        "java": "DiameterDictionary.EXPERIMENTAL_RESULT"
+      },
+      {
+        "name": "Experimental-Result-Code",
+        "value": 298,
+        "spec": "RFC 6733 clause 7.6 (Experimental-Result-Code AVP)",
+        "java": "DiameterDictionary.EXPERIMENTAL_RESULT_CODE"
+      },
+      {
+        "name": "Auth-Session-State",
+        "value": 277,
+        "spec": "RFC 6733 clause 8.11 (Auth-Session-State AVP)",
+        "java": "DiameterDictionary.AUTH_SESSION_STATE",
+        "python": "corelib.diameter.AVP_AUTH_SESSION_STATE"
+      },
+      {
+        "name": "MSISDN",
+        "value": 701,
+        "spec": "3GPP TS 29.329 clause 6.3.2 (MSISDN AVP)",
+        "java": "DiameterDictionary.MSISDN",
+        "python": "corelib.diameter.AVP_MSISDN"
+      },
+      {
+        "name": "IMEI",
+        "value": 1402,
+        "spec": "3GPP TS 29.272 clause 7.3.7 (IMEI AVP)",
+        "java": "DiameterDictionary.IMEI"
+      },
+      {
+        "name": "LCS-Format-Indicator",
+        "value": 1237,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (LCS-Format-Indicator AVP)",
+        "java": "DiameterDictionary.LCS_FORMAT_INDICATOR"
+      },
+      {
+        "name": "LCS-Name-String",
+        "value": 1238,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (LCS-Name-String AVP)",
+        "java": "DiameterDictionary.LCS_NAME_STRING"
+      },
+      {
+        "name": "LCS-Client-Type",
+        "value": 1241,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (LCS-Client-Type AVP)",
+        "java": "DiameterDictionary.LCS_CLIENT_TYPE",
+        "python": "corelib.diameter.AVP_LCS_CLIENT_TYPE"
+      },
+      {
+        "name": "Location-Estimate",
+        "value": 1242,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (Location-Estimate AVP)",
+        "java": "DiameterDictionary.LOCATION_ESTIMATE"
+      },
+      {
+        "name": "Serving-Node-Type / E-UTRAN-Cell-Global-Identity",
+        "value": 1602,
+        "spec": "3GPP TS 29.272 clause 7.3.117 (E-UTRAN-Cell-Global-Identity AVP)",
+        "java": "DiameterDictionary.E_UTRAN_CELL_GLOBAL_IDENTITY"
+      },
+      {
+        "name": "Tracking-Area-Identity",
+        "value": 1603,
+        "spec": "3GPP TS 29.272 clause 7.3.118 (Tracking-Area-Identity AVP)",
+        "java": "DiameterDictionary.TRACKING_AREA_IDENTITY"
+      },
+      {
+        "name": "Cell-Global-Identity",
+        "value": 1604,
+        "spec": "3GPP TS 29.272 clause 7.3.119 (Cell-Global-Identity AVP)",
+        "java": "DiameterDictionary.CELL_GLOBAL_IDENTITY"
+      },
+      {
+        "name": "Service-Area-Identity",
+        "value": 1607,
+        "spec": "3GPP TS 29.272 clause 7.3.122 (Service-Area-Identity AVP)",
+        "java": "DiameterDictionary.SERVICE_AREA_IDENTITY"
+      },
+      {
+        "name": "LMSI",
+        "value": 2400,
+        "spec": "3GPP TS 29.173 clause 7.4.1 (LMSI AVP)",
+        "java": "DiameterDictionary.LMSI"
+      },
+      {
+        "name": "Serving-Node",
+        "value": 2401,
+        "spec": "3GPP TS 29.173 clause 7.4.2 (Serving-Node AVP)",
+        "java": "DiameterDictionary.SERVING_NODE"
+      },
+      {
+        "name": "MME-Name",
+        "value": 2402,
+        "spec": "3GPP TS 29.173 clause 7.4.3 (MME-Name AVP)",
+        "java": "DiameterDictionary.MME_NAME"
+      },
+      {
+        "name": "MSC-Number",
+        "value": 2403,
+        "spec": "3GPP TS 29.173 clause 7.4.4 (MSC-Number AVP)",
+        "java": "DiameterDictionary.MSC_NUMBER"
+      },
+      {
+        "name": "LCS-Capabilities-Sets",
+        "value": 2404,
+        "spec": "3GPP TS 29.173 clause 7.4.5 (LCS-Capabilities-Sets AVP)",
+        "java": "DiameterDictionary.LCS_CAPABILITIES_SETS"
+      },
+      {
+        "name": "GMLC-Address",
+        "value": 2405,
+        "spec": "3GPP TS 29.173 clause 7.4.6 (GMLC-Address AVP)",
+        "java": "DiameterDictionary.GMLC_ADDRESS"
+      },
+      {
+        "name": "Additional-Serving-Node",
+        "value": 2406,
+        "spec": "3GPP TS 29.173 clause 7.4.7 (Additional-Serving-Node AVP)",
+        "java": "DiameterDictionary.ADDITIONAL_SERVING_NODE"
+      },
+      {
+        "name": "PPR-Address",
+        "value": 2407,
+        "spec": "3GPP TS 29.173 clause 7.4.8 (PPR-Address AVP)",
+        "java": "DiameterDictionary.PPR_ADDRESS"
+      },
+      {
+        "name": "MME-Realm",
+        "value": 2408,
+        "spec": "3GPP TS 29.173 clause 7.4.9 (MME-Realm AVP)",
+        "java": "DiameterDictionary.MME_REALM"
+      },
+      {
+        "name": "SGSN-Name",
+        "value": 2409,
+        "spec": "3GPP TS 29.173 clause 7.4.10 (SGSN-Name AVP)",
+        "java": "DiameterDictionary.SGSN_NAME"
+      },
+      {
+        "name": "SGSN-Realm",
+        "value": 2410,
+        "spec": "3GPP TS 29.173 clause 7.4.11 (SGSN-Realm AVP)",
+        "java": "DiameterDictionary.SGSN_REALM"
+      },
+      {
+        "name": "RIA-Flags",
+        "value": 2411,
+        "spec": "3GPP TS 29.173 clause 7.4.12 (RIA-Flags AVP)",
+        "java": "DiameterDictionary.RIA_FLAGS"
+      },
+      {
+        "name": "SGSN-Number",
+        "value": 1489,
+        "spec": "3GPP TS 29.272 clause 7.3.102 (SGSN-Number AVP)",
+        "java": "DiameterDictionary.SGSN_NUMBER"
+      },
+      {
+        "name": "SLg-Location-Type",
+        "value": 2500,
+        "spec": "3GPP TS 29.172 clause 7.4.1 (SLg-Location-Type AVP)",
+        "java": "DiameterDictionary.SLG_LOCATION_TYPE",
+        "python": "corelib.diameter.AVP_SLG_LOCATION_TYPE"
+      },
+      {
+        "name": "LCS-EPS-Client-Name",
+        "value": 2501,
+        "spec": "3GPP TS 29.172 clause 7.4.2 (LCS-EPS-Client-Name AVP)",
+        "java": "DiameterDictionary.LCS_EPS_CLIENT_NAME",
+        "python": "corelib.diameter.AVP_LCS_EPS_CLIENT_NAME"
+      },
+      {
+        "name": "LCS-Requestor-Name",
+        "value": 2502,
+        "spec": "3GPP TS 29.172 clause 7.4.3 (LCS-Requestor-Name AVP)",
+        "java": "DiameterDictionary.LCS_REQUESTOR_NAME"
+      },
+      {
+        "name": "LCS-Priority",
+        "value": 2503,
+        "spec": "3GPP TS 29.172 clause 7.4.4 (LCS-Priority AVP)",
+        "java": "DiameterDictionary.LCS_PRIORITY"
+      },
+      {
+        "name": "LCS-QoS",
+        "value": 2504,
+        "spec": "3GPP TS 29.172 clause 7.4.5 (LCS-QoS AVP)",
+        "java": "DiameterDictionary.LCS_QOS",
+        "python": "corelib.diameter.AVP_LCS_QOS"
+      },
+      {
+        "name": "Horizontal-Accuracy",
+        "value": 2505,
+        "spec": "3GPP TS 29.172 clause 7.4.6 (Horizontal-Accuracy AVP)",
+        "java": "DiameterDictionary.HORIZONTAL_ACCURACY",
+        "python": "corelib.diameter.AVP_HORIZONTAL_ACCURACY"
+      },
+      {
+        "name": "Vertical-Accuracy",
+        "value": 2506,
+        "spec": "3GPP TS 29.172 clause 7.4.7 (Vertical-Accuracy AVP)",
+        "java": "DiameterDictionary.VERTICAL_ACCURACY"
+      },
+      {
+        "name": "Vertical-Requested",
+        "value": 2507,
+        "spec": "3GPP TS 29.172 clause 7.4.8 (Vertical-Requested AVP)",
+        "java": "DiameterDictionary.VERTICAL_REQUESTED"
+      },
+      {
+        "name": "Velocity-Requested",
+        "value": 2508,
+        "spec": "3GPP TS 29.172 clause 7.4.9 (Velocity-Requested AVP)",
+        "java": "DiameterDictionary.VELOCITY_REQUESTED"
+      },
+      {
+        "name": "Response-Time",
+        "value": 2509,
+        "spec": "3GPP TS 29.172 clause 7.4.10 (Response-Time AVP)",
+        "java": "DiameterDictionary.RESPONSE_TIME",
+        "python": "corelib.diameter.AVP_RESPONSE_TIME"
+      },
+      {
+        "name": "Supported-GAD-Shapes",
+        "value": 2510,
+        "spec": "3GPP TS 29.172 clause 7.4.11 (Supported-GAD-Shapes AVP)",
+        "java": "DiameterDictionary.SUPPORTED_GAD_SHAPES"
+      },
+      {
+        "name": "Accuracy-Fulfilment-Indicator",
+        "value": 2513,
+        "spec": "3GPP TS 29.172 clause 7.4.12 (Accuracy-Fulfilment-Indicator AVP)",
+        "java": "DiameterDictionary.ACCURACY_FULFILMENT_INDICATOR",
+        "python": "corelib.diameter.AVP_ACCURACY_FULFILMENT"
+      },
+      {
+        "name": "Age-Of-Location-Estimate",
+        "value": 2514,
+        "spec": "3GPP TS 29.172 clause 7.4.13 (Age-Of-Location-Estimate AVP)",
+        "java": "DiameterDictionary.AGE_OF_LOCATION_ESTIMATE",
+        "python": "corelib.diameter.AVP_AGE_OF_LOCATION"
+      },
+      {
+        "name": "EUTRAN-Positioning-Data",
+        "value": 2516,
+        "spec": "3GPP TS 29.172 clause 7.4.15 (EUTRAN-Positioning-Data AVP)",
+        "java": "DiameterDictionary.EUTRAN_POSITIONING_DATA"
+      },
+      {
+        "name": "ECGI",
+        "value": 2517,
+        "spec": "3GPP TS 29.172 clause 7.4.16 (ECGI AVP)",
+        "java": "DiameterDictionary.ECGI",
+        "python": "corelib.diameter.AVP_ECGI"
+      },
+      {
+        "name": "PLR-Flags",
+        "value": 2545,
+        "spec": "3GPP TS 29.172 clause 7.4.19 (PLR-Flags AVP)",
+        "java": "DiameterDictionary.PLR_FLAGS"
+      },
+      {
+        "name": "PLA-Flags",
+        "value": 2546,
+        "spec": "3GPP TS 29.172 clause 7.4.20 (PLA-Flags AVP)",
+        "java": "DiameterDictionary.PLA_FLAGS"
+      }
+    ],
+    "enumerations": [
+      {
+        "name": "Auth-Session-State: NO_STATE_MAINTAINED",
+        "value": 1,
+        "spec": "RFC 6733 clause 8.11 (Auth-Session-State enumeration)",
+        "java": "DiameterDictionary.AUTH_SESSION_STATE_NO_STATE_MAINTAINED"
+      },
+      {
+        "name": "SLg-Location-Type: CURRENT_OR_LAST_KNOWN_LOCATION",
+        "value": 1,
+        "spec": "3GPP TS 29.172 clause 7.4.1 (SLg-Location-Type enumeration)",
+        "java": "DiameterDictionary.SLG_LOCATION_TYPE_CURRENT_OR_LAST_KNOWN"
+      },
+      {
+        "name": "Response-Time: LOW_DELAY",
+        "value": 0,
+        "spec": "3GPP TS 29.172 clause 7.4.10 (Response-Time enumeration)",
+        "java": "DiameterDictionary.RESPONSE_TIME_LOW_DELAY"
+      },
+      {
+        "name": "LCS-Client-Type: EMERGENCY_SERVICES",
+        "value": 0,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (LCS-Client-Type enumeration)",
+        "java": "DiameterDictionary.LCS_CLIENT_TYPE_EMERGENCY"
+      },
+      {
+        "name": "LCS-Client-Type: VALUE_ADDED_SERVICES",
+        "value": 1,
+        "spec": "3GPP TS 32.299 clause 7.6.3 (LCS-Client-Type enumeration)",
+        "java": "DiameterDictionary.LCS_CLIENT_TYPE_VALUE_ADDED"
+      },
+      {
+        "name": "Accuracy-Fulfilment-Indicator: FULFILLED",
+        "value": 0,
+        "spec": "3GPP TS 29.172 clause 7.4.12 (Accuracy-Fulfilment-Indicator enumeration)",
+        "java": "DiameterDictionary.ACCURACY_FULFILLED"
+      },
+      {
+        "name": "Accuracy-Fulfilment-Indicator: NOT_FULFILLED",
+        "value": 1,
+        "spec": "3GPP TS 29.172 clause 7.4.12 (Accuracy-Fulfilment-Indicator enumeration)",
+        "java": "DiameterDictionary.ACCURACY_NOT_FULFILLED"
+      }
+    ],
+    "resultCodes": [
+      {
+        "name": "DIAMETER_SUCCESS",
+        "value": 2001,
+        "spec": "RFC 6733 clause 7.1.1 (DIAMETER_SUCCESS)",
+        "java": "DiameterDictionary.DIAMETER_SUCCESS",
+        "python": "corelib.diameter.RESULT_SUCCESS"
+      },
+      {
+        "name": "DIAMETER_UNABLE_TO_COMPLY",
+        "value": 5012,
+        "spec": "RFC 6733 clause 7.1.4 (DIAMETER_UNABLE_TO_COMPLY)",
+        "java": "DiameterDictionary.DIAMETER_UNABLE_TO_COMPLY",
+        "python": "corelib.diameter.RESULT_UNABLE_TO_COMPLY"
+      },
+      {
+        "name": "DIAMETER_ERROR_USER_UNKNOWN",
+        "value": 5001,
+        "spec": "3GPP TS 29.272 clause 7.4.1 (DIAMETER_ERROR_USER_UNKNOWN)",
+        "java": "DiameterDictionary.DIAMETER_USER_UNKNOWN",
+        "python": "corelib.diameter.RESULT_USER_UNKNOWN"
+      },
+      {
+        "name": "DIAMETER_ERROR_UNAUTHORIZED_REQUESTING_NETWORK",
+        "value": 5490,
+        "spec": "3GPP TS 29.172 clause 7.5.1 (DIAMETER_ERROR_UNAUTHORIZED_REQUESTING_NETWORK)",
+        "java": "DiameterDictionary.DIAMETER_UNAUTHORIZED_REQUESTING_NETWORK"
+      },
+      {
+        "name": "DIAMETER_ERROR_ABSENT_USER",
+        "value": 4201,
+        "spec": "3GPP TS 29.172 clause 7.5.2 (DIAMETER_ERROR_ABSENT_USER)",
+        "java": "DiameterDictionary.DIAMETER_ABSENT_USER",
+        "python": "corelib.diameter.RESULT_ABSENT_USER"
+      },
+      {
+        "name": "DIAMETER_ERROR_UNREACHABLE_USER",
+        "value": 4221,
+        "spec": "3GPP TS 29.172 clause 7.5.3 (DIAMETER_ERROR_UNREACHABLE_USER)",
+        "java": "DiameterDictionary.DIAMETER_UNREACHABLE_USER",
+        "python": "corelib.diameter.RESULT_UNREACHABLE_USER"
+      },
+      {
+        "name": "DIAMETER_ERROR_SUSPENDED_USER",
+        "value": 4222,
+        "spec": "3GPP TS 29.172 clause 7.5.4 (DIAMETER_ERROR_SUSPENDED_USER)",
+        "java": "DiameterDictionary.DIAMETER_SUSPENDED_USER"
+      },
+      {
+        "name": "DIAMETER_ERROR_DETACHED_USER",
+        "value": 4223,
+        "spec": "3GPP TS 29.172 clause 7.5.5 (DIAMETER_ERROR_DETACHED_USER)",
+        "java": "DiameterDictionary.DIAMETER_DETACHED_USER"
+      },
+      {
+        "name": "DIAMETER_ERROR_POSITIONING_DENIED",
+        "value": 4224,
+        "spec": "3GPP TS 29.172 clause 7.5.6 (DIAMETER_ERROR_POSITIONING_DENIED)",
+        "java": "DiameterDictionary.DIAMETER_POSITIONING_DENIED"
+      },
+      {
+        "name": "DIAMETER_ERROR_POSITIONING_FAILED",
+        "value": 4225,
+        "spec": "3GPP TS 29.172 clause 7.5.7 (DIAMETER_ERROR_POSITIONING_FAILED)",
+        "java": "DiameterDictionary.DIAMETER_POSITIONING_FAILED",
+        "python": "corelib.diameter.RESULT_POSITIONING_FAILED"
+      }
+    ]
+  },
+  "map": {
+    "opcodes": [
+      {
+        "name": "provideSubscriberLocation",
+        "value": 83,
+        "spec": "3GPP TS 29.002 clause 25.1 (provideSubscriberLocation opcode)",
+        "java": "MapLcs.OP_PROVIDE_SUBSCRIBER_LOCATION"
+      },
+      {
+        "name": "sendRoutingInfoForLCS",
+        "value": 85,
+        "spec": "3GPP TS 29.002 clause 25.1 (sendRoutingInfoForLCS opcode)",
+        "java": "MapLcs.OP_SEND_ROUTING_INFO_FOR_LCS"
+      },
+      {
+        "name": "anyTimeInterrogation",
+        "value": 71,
+        "spec": "3GPP TS 29.002 clause 25.1 (anyTimeInterrogation opcode)",
+        "java": "MapLcs.OP_ANY_TIME_INTERROGATION"
+      }
+    ],
+    "ssn": [
+      {
+        "name": "HLR",
+        "value": 6,
+        "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, HLR)",
+        "java": "Sccp.SSN_HLR",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_SSN_HLR"
+      },
+      {
+        "name": "VLR",
+        "value": 7,
+        "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, VLR)",
+        "java": "Sccp.SSN_VLR"
+      },
+      {
+        "name": "MSC",
+        "value": 8,
+        "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, MSC)",
+        "java": "Sccp.SSN_MSC"
+      },
+      {
+        "name": "SGSN",
+        "value": 149,
+        "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, SGSN)",
+        "java": "Sccp.SSN_SGSN"
+      },
+      {
+        "name": "GMLC",
+        "value": 145,
+        "spec": "3GPP TS 29.002 clause 20.4 (SCCP subsystem number, GMLC)",
+        "java": "Sccp.SSN_GMLC"
+      }
+    ],
+    "sccpMessageTypes": [
+      {
+        "name": "UDT",
+        "value": 9,
+        "spec": "ITU-T Q.713 clause 4.2 (SCCP message type, UDT)",
+        "java": "Sccp.UDT",
+        "python": "file:map_sccp/src/map_sccp_server.py#SCCP_MSG_TYPE_UDT"
+      }
+    ]
+  },
+  "knownDivergences": [
+    {
+      "boundary": "signalling",
+      "what": "Python MAP opcodes for LCS operations",
+      "spec": "3GPP TS 29.002 clause 25.1",
+      "expected": {
+        "provideSubscriberInfo": 70,
+        "sendRoutingInfoForLCS": 85,
+        "provideSubscriberLocation": 83,
+        "anyTimeInterrogation": 71
+      },
+      "javaActual": {
+        "provideSubscriberLocation": 83,
+        "sendRoutingInfoForLCS": 85,
+        "anyTimeInterrogation": 71
+      },
+      "pythonActual": {
+        "MAP_OP_PROVIDE_SUBSCRIBER_INFO": 107,
+        "MAP_OP_ANY_TIME_INTERROGATION": 109,
+        "MAP_OP_SEND_ROUTING_INFO_FOR_SM": 111
+      },
+      "pythonWhere": "map_sccp/src/map_sccp_server.py:93-97",
+      "note": "Python has no PSL/SRILCS/SLR opcodes and numbers PSI and ATI wrongly; Java has no PSI. Fixed in the MAP boundary commit."
+    },
+    {
+      "boundary": "signalling",
+      "what": "Python Sh application id",
+      "spec": "3GPP TS 29.328 clause 5.1",
+      "expected": 16777217,
+      "pythonActual": 16777251,
+      "pythonWhere": "diameter/src/diameter_server.py:70",
+      "note": "The same value as S6a is used for Sh in the legacy server; corelib.diameter.APP_SH is correct. Fixed in the Diameter boundary commit."
+    },
+    {
+      "boundary": "signalling",
+      "what": "Python SCCP subsystem numbers",
+      "spec": "3GPP TS 29.002 clause 20.4",
+      "expected": {"HLR": 6, "VLR": 7, "MSC": 8, "SGSN": 149, "GMLC": 145},
+      "pythonActual": {"SCCP_SSN_HLR": 6, "SCCP_SSN_VLR": 6, "SCCP_SSN_MSC": 6, "SCCP_SSN_SCP": 7},
+      "pythonWhere": "map_sccp/src/map_sccp_server.py:50-54",
+      "note": "VLR and MSC are collapsed onto 6 and the GMLC/SGSN SSNs are absent. Fixed in the MAP boundary commit."
+    }
+  ]
+}

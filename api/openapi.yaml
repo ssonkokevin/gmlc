@@ -1,0 +1,3042 @@
+openapi: 3.1.0
+info:
+  title: GMLC Location Gateway API
+  version: 0.1.0
+  summary: Le location API, operator console API and OMA MLP adapter.
+  description: |
+    This file is the committed contract for the gateway's HTTP surface. It is
+    the source of truth for the frontend and is checked against the running
+    Spring mappings by `ApiSpecDriftTest`; the check fails when a controller
+    mapping is absent here or a path here has no controller.
+
+    Three credentials are used and they are not interchangeable:
+
+    * `apiKey` - an LBS client key, sent as `Authorization: Bearer <key>` or as
+      `X-API-Key`. Required on `/v1/*` except health, admin and ops, and on
+      `/mlp`.
+    * `adminKey` - the operator key from `GMLC_ADMIN_KEY`, sent as
+      `X-Admin-Key`. Required on `/v1/admin/*`. When `GMLC_ADMIN_KEY` is blank
+      the admin surface answers 404 and is effectively absent.
+    * `opsSession` - the console session cookie `GMLC_OPS`, set by
+      `POST /v1/ops/session`. State-changing ops calls must also echo the
+      session's CSRF token in `X-CSRF-Token`. An API key is ignored on ops
+      routes.
+
+    Errors are RFC 7807 `application/problem+json`. `code` is a stable
+    identifier where the table below names one; `title` and `detail` are for
+    people and may be reworded.
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8082
+    description: Local default (GMLC_PORT)
+tags:
+  - name: Le
+    description: Client-facing location requests, consent and cell reads.
+  - name: Admin
+    description: Operator-key guarded writes that mint credentials or change the cell plan.
+  - name: Capability
+    description: The tenant's capability profile.
+  - name: Health
+    description: Liveness and readiness.
+  - name: Ops session
+    description: Operator sign-in, sign-out and who-am-I.
+  - name: Ops dashboard
+    description: Aggregates, request browser and deferred reporting.
+  - name: Ops monitoring
+    description: Recorded signalling exchanges, series, reports and CSV export.
+  - name: Ops health
+    description: Peer state and alert engine.
+  - name: Ops locations
+    description: Operator-initiated location requests.
+  - name: Ops geofences
+    description: Geofence definitions, arms and events.
+  - name: Ops subscriptions
+    description: Event subscriptions and webhook deliveries.
+  - name: Ops tracking
+    description: Tracked subjects, trails, schedules and notifier channels.
+  - name: Ops configuration
+    description: Versioned configuration changes with four-eyes approval.
+  - name: Ops users
+    description: Console accounts.
+  - name: Ops access
+    description: Roles, sessions, audit, policy and break-glass.
+  - name: Ops administration
+    description: Read access to the cell plan for operators.
+  - name: MLP
+    description: OMA MLP 3.x standard location immediate.
+  - name: Console page
+    description: Static single-page application entry points.
+
+security:
+  - apiKey: []
+
+paths:
+  /v1/locations:
+    post:
+      tags: [Le]
+      summary: Submit a location request
+      description: |
+        Consent is checked before any signalling. The response names the
+        request and its state but never echoes the subject. A replayed
+        `Idempotency-Key` returns the original request; a request that has
+        already finished answers 200, one still working answers 202.
+      operationId: createLocation
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationRequestInput'
+      responses:
+        '200':
+          description: Accepted earlier and already final, or an idempotent replay.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationView'
+        '202':
+          description: Accepted and still working.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          description: No consent covers this subject for that purpose.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+
+  /v1/locations/{requestId}:
+    get:
+      tags: [Le]
+      summary: Read one location request and its result
+      operationId: getLocation
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+      responses:
+        '200':
+          description: The request and, when complete, its result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationView'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/consents:
+    post:
+      tags: [Le]
+      summary: Record a consent grant
+      operationId: grantConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentGrantRequest'
+      responses:
+        '201':
+          description: Consent recorded.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+  /v1/consents/{consentId}:
+    get:
+      tags: [Le]
+      summary: Read a consent record
+      operationId: getConsent
+      parameters:
+        - $ref: '#/components/parameters/ConsentIdPath'
+      responses:
+        '200':
+          description: The consent record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentView'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Le]
+      summary: Revoke a consent record
+      operationId: revokeConsent
+      parameters:
+        - $ref: '#/components/parameters/ConsentIdPath'
+      responses:
+        '204':
+          description: Revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/cells:
+    get:
+      tags: [Le]
+      summary: List cells from the authoritative plan
+      operationId: listCells
+      parameters:
+        - name: rat
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [GSM, UMTS, LTE, NR]
+        - name: area
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit100'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of the cell plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+  /v1/cells/{rat}/{cellIdentity}:
+    get:
+      tags: [Le]
+      summary: Read one cell
+      operationId: getCell
+      parameters:
+        - name: rat
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [GSM, UMTS, LTE, NR]
+        - name: cellIdentity
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The cell as stored, with derived geometry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/cdrs:
+    get:
+      tags: [Le]
+      summary: Read this client's own CDRs
+      operationId: listCdrs
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: The newest CDRs for the authenticated client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CdrPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+  /v1/clients/me:
+    get:
+      tags: [Le]
+      summary: The authenticated client's own configuration
+      operationId: getMe
+      responses:
+        '200':
+          description: Configuration and limits. No key or key hash is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientMe'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+  /v1/subscribers/{trackedId}/last-known:
+    get:
+      tags: [Le]
+      summary: The client's last known fix for a tracked subject
+      operationId: getLastKnown
+      parameters:
+        - name: trackedId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A fix with its honesty envelope, or found=false with a reason.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LastKnownView'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/capabilities:
+    get:
+      tags: [Capability]
+      summary: The tenant's capability profile
+      description: |
+        The profile is the promise the API makes: methods per RAT, build state,
+        and network feature flags. An invalid stored profile is a 503, never a
+        partial claim. `X-Capability-Source` says `bundled` or `database`.
+      operationId: getCapabilities
+      responses:
+        '200':
+          description: The validated capability profile.
+          headers:
+            X-Capability-Source:
+              schema:
+                type: string
+                enum: [bundled, database]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '503':
+          description: The profile is invalid and is not served.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Liveness, database and capability state
+      description: Unauthenticated by design. The body carries no connection strings.
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Database and capability profile are usable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Database unreachable or capability profile invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /v1/admin/clients:
+    post:
+      tags: [Admin]
+      summary: Register an API client and mint its key
+      description: |
+        The response is the only time the key is returned. With no admin key
+        configured the route answers 404. Purposes are limited to the operator's
+        permitted set; lawful interception is not among them.
+      operationId: registerClient
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRegistrationRequest'
+      responses:
+        '201':
+          description: Client created; `apiKey` is shown once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          description: The admin API is disabled on this deployment.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: A client with that name already exists.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/admin/cells:
+    post:
+      tags: [Admin]
+      summary: Insert or update one cell
+      operationId: upsertCell
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CellInput'
+      responses:
+        '200':
+          description: Existing cell updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellView'
+        '201':
+          description: New cell inserted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          description: The admin API is disabled on this deployment.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/admin/cells/import:
+    post:
+      tags: [Admin]
+      summary: Import cells from CSV
+      description: |
+        Dry run is the default: the report is the product until the operator
+        asks to commit. The report lists every accepted and rejected row.
+      operationId: importCells
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: '#/components/parameters/AdminKeyHeader'
+        - name: dryRun
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Import report.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          description: The admin API is disabled on this deployment.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /mlp:
+    post:
+      tags: [MLP]
+      summary: OMA MLP standard location immediate
+      description: |
+        Accepts an MLP `slir` request and answers with `slia` XML. Operation
+        errors are MLP faults in a 200 answer; only an oversized body is a
+        transport error. The same API key, consent and audit rules apply as on
+        the Le API.
+      operationId: mlpSlir
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: false
+        content:
+          application/xml:
+            schema:
+              type: string
+          text/xml:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: An `slia` answer, including MLP faults.
+          content:
+            application/xml:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '413':
+          description: The request body exceeds 64k characters.
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /console:
+    get:
+      tags: [Console page]
+      summary: Operations console entry point
+      description: Forwards to the built single-page application. Static assets under `/console/` are not API mappings.
+      operationId: consolePage
+      security: []
+      responses:
+        '200':
+          description: The console HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v1/ops/session:
+    post:
+      tags: [Ops session]
+      summary: Sign in
+      description: |
+        Creates the session cookie and returns the CSRF token. This is the one
+        ops route that does not require a session.
+      operationId: opsLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsLoginRequest'
+      responses:
+        '200':
+          description: Signed in. Sets `GMLC_OPS` and returns the session view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsSessionView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Bad credentials, TOTP or a locked account.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      tags: [Ops session]
+      summary: Sign out
+      operationId: opsLogout
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Signed out; the cookie is cleared.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/me:
+    get:
+      tags: [Ops session]
+      summary: Who am I
+      operationId: opsMe
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          description: The current session and its permissions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpsSessionView'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+
+  /v1/ops/summary:
+    get:
+      tags: [Ops dashboard]
+      summary: Dashboard summary over a range
+      operationId: opsSummary
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Bucket'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/throughput:
+    get:
+      tags: [Ops dashboard]
+      summary: Request throughput series
+      operationId: opsThroughput
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Bucket'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/mix:
+    get:
+      tags: [Ops dashboard]
+      summary: Method and outcome mix
+      operationId: opsMix
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Bucket'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/deferred:
+    get:
+      tags: [Ops dashboard]
+      summary: Deferred reporting status
+      operationId: opsDeferred
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/requests:
+    get:
+      tags: [Ops dashboard]
+      summary: Browse location requests
+      operationId: opsRequests
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Bucket'
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: protocol
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: purpose
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: recordStatus
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/OpsLimit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/requests/{requestId}:
+    get:
+      tags: [Ops dashboard]
+      summary: One request in detail
+      description: Identifiers are masked unless `reveal=true` and the role carries REVEAL_IDENTIFIERS.
+      operationId: opsRequestDetail
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdPath'
+        - name: reveal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/exchanges:
+    get:
+      tags: [Ops monitoring]
+      summary: Recorded signalling exchanges
+      operationId: opsExchanges
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - name: protocol
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: recordStatus
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: requestId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OpsLimit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/exchanges/series:
+    get:
+      tags: [Ops monitoring]
+      summary: Exchange time series
+      operationId: opsExchangeSeries
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - $ref: '#/components/parameters/Bucket'
+        - name: protocol
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/exchanges/export.csv:
+    get:
+      tags: [Ops monitoring]
+      summary: Export exchanges as CSV
+      operationId: opsExchangeExport
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - name: protocol
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: recordStatus
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: requestId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CSV export.
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/reports:
+    get:
+      tags: [Ops monitoring]
+      summary: Aggregated reports
+      operationId: opsReports
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/reports/export.csv:
+    get:
+      tags: [Ops monitoring]
+      summary: Export one report as CSV
+      operationId: opsReportExport
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - name: report
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [clients, purposes, rat, method, cell]
+            default: clients
+      responses:
+        '200':
+          description: CSV export.
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/peers:
+    get:
+      tags: [Ops health]
+      summary: Signalling peers and 3GPP interfaces
+      operationId: opsPeers
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/alerts:
+    get:
+      tags: [Ops health]
+      summary: Alerts
+      operationId: opsAlerts
+      security:
+        - opsSession: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            default: OPEN
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/alerts/{alertId}/acknowledge:
+    post:
+      tags: [Ops health]
+      summary: Acknowledge an alert
+      operationId: opsAcknowledgeAlert
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Acknowledged.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/clients:
+    get:
+      tags: [Ops locations]
+      summary: Clients that may receive operator-placed requests
+      operationId: opsLocationClients
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/locations:
+    post:
+      tags: [Ops locations]
+      summary: Place a location request as an operator
+      description: Uses the same consent and audit path as the Le API; no shortcut.
+      operationId: opsLocate
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationRequestInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '202':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences:
+    get:
+      tags: [Ops geofences]
+      summary: List geofences
+      operationId: opsGeofences
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops geofences]
+      summary: Create a geofence
+      operationId: opsCreateGeofence
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/summary:
+    get:
+      tags: [Ops geofences]
+      summary: Geofence summary
+      operationId: opsGeofenceSummary
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/arms:
+    get:
+      tags: [Ops geofences]
+      summary: List armed subjects
+      operationId: opsGeofenceArms
+      security:
+        - opsSession: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [INSIDE, OUTSIDE]
+            default: INSIDE
+        - $ref: '#/components/parameters/Limit100'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/events:
+    get:
+      tags: [Ops geofences]
+      summary: Geofence events
+      operationId: opsGeofenceEvents
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/Range'
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: geofenceId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/OpsLimit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/{geofenceId}:
+    get:
+      tags: [Ops geofences]
+      summary: One geofence
+      operationId: opsGeofence
+      security:
+        - opsSession: []
+      parameters:
+        - name: geofenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Ops geofences]
+      summary: Update a geofence
+      operationId: opsPatchGeofence
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: geofenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/geofences/{geofenceId}/arms:
+    get:
+      tags: [Ops geofences]
+      summary: Arms on one geofence
+      operationId: opsGeofenceArmsFor
+      security:
+        - opsSession: []
+      parameters:
+        - name: geofenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/{geofenceId}/arm:
+    post:
+      tags: [Ops geofences]
+      summary: Arm a subject on a geofence
+      operationId: opsArmGeofence
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: geofenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/geofences/{geofenceId}/arms/{subjectRef}:
+    delete:
+      tags: [Ops geofences]
+      summary: Disarm a subject
+      operationId: opsDisarmGeofence
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: geofenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subjectRef
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Disarmed.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/subscriptions:
+    get:
+      tags: [Ops subscriptions]
+      summary: List event subscriptions
+      operationId: opsSubscriptions
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops subscriptions]
+      summary: Create an event subscription
+      description: The signing secret is returned once and never read back.
+      operationId: opsCreateSubscription
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/subscriptions/{subscriptionId}:
+    get:
+      tags: [Ops subscriptions]
+      summary: One subscription
+      operationId: opsSubscription
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/SubscriptionIdPath'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Ops subscriptions]
+      summary: Enable or disable a subscription
+      operationId: opsPatchSubscription
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SubscriptionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Ops subscriptions]
+      summary: Delete a subscription
+      operationId: opsDeleteSubscription
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SubscriptionIdPath'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/subscriptions/{subscriptionId}/deliveries:
+    get:
+      tags: [Ops subscriptions]
+      summary: Webhook delivery attempts
+      operationId: opsSubscriptionDeliveries
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/SubscriptionIdPath'
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking:
+    get:
+      tags: [Ops tracking]
+      summary: List tracked subjects
+      operationId: opsTrackedSubjects
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops tracking]
+      summary: Add a tracked subject
+      operationId: opsAddTrackedSubject
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/summary:
+    get:
+      tags: [Ops tracking]
+      summary: Tracking summary
+      operationId: opsTrackingSummary
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/{trackedId}:
+    get:
+      tags: [Ops tracking]
+      summary: One tracked subject
+      operationId: opsTrackedSubject
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/TrackedIdPath'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Ops tracking]
+      summary: Enable or disable tracking for a subject
+      operationId: opsPatchTrackedSubject
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/TrackedIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Ops tracking]
+      summary: Remove a tracked subject
+      operationId: opsDeleteTrackedSubject
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/TrackedIdPath'
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/tracking/{trackedId}/trail:
+    get:
+      tags: [Ops tracking]
+      summary: Stored trail for a tracked subject
+      operationId: opsTrackingTrail
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/TrackedIdPath'
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/schedules:
+    get:
+      tags: [Ops tracking]
+      summary: List schedules
+      operationId: opsSchedules
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops tracking]
+      summary: Create a schedule
+      operationId: opsCreateSchedule
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/schedules/{scheduleId}:
+    get:
+      tags: [Ops tracking]
+      summary: One schedule
+      operationId: opsSchedule
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/ScheduleIdPath'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Ops tracking]
+      summary: Enable or disable a schedule
+      operationId: opsPatchSchedule
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/ScheduleIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Ops tracking]
+      summary: Delete a schedule
+      operationId: opsDeleteSchedule
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/ScheduleIdPath'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/tracking/schedules/{scheduleId}/runs:
+    get:
+      tags: [Ops tracking]
+      summary: Runs of one schedule
+      operationId: opsScheduleRuns
+      security:
+        - opsSession: []
+      parameters:
+        - $ref: '#/components/parameters/ScheduleIdPath'
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/schedules/{scheduleId}/run:
+    post:
+      tags: [Ops tracking]
+      summary: Run a schedule now
+      operationId: opsRunSchedule
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/ScheduleIdPath'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/tracking/channels:
+    get:
+      tags: [Ops tracking]
+      summary: List notifier channels
+      operationId: opsChannels
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops tracking]
+      summary: Create a notifier channel
+      description: The signing secret is returned once and never read back.
+      operationId: opsCreateChannel
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/tracking/channels/{channelId}:
+    get:
+      tags: [Ops tracking]
+      summary: One notifier channel
+      operationId: opsChannel
+      security:
+        - opsSession: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Ops tracking]
+      summary: Enable or disable a channel
+      operationId: opsPatchChannel
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Ops tracking]
+      summary: Delete a channel
+      operationId: opsDeleteChannel
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/configuration:
+    get:
+      tags: [Ops configuration]
+      summary: Current configuration snapshot
+      operationId: opsConfiguration
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/configuration/changes:
+    get:
+      tags: [Ops configuration]
+      summary: Configuration change requests
+      operationId: opsConfigChanges
+      security:
+        - opsSession: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ALL
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops configuration]
+      summary: Request a configuration change
+      operationId: opsRequestConfigChange
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/configuration/changes/{changeId}/approve:
+    post:
+      tags: [Ops configuration]
+      summary: Approve a change
+      description: "Four-eyes: the approver must not be the requester."
+      operationId: opsApproveConfigChange
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: changeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/configuration/changes/{changeId}/reject:
+    post:
+      tags: [Ops configuration]
+      summary: Reject a change
+      operationId: opsRejectConfigChange
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: changeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/administration/cells:
+    get:
+      tags: [Ops administration]
+      summary: Read the cell plan
+      operationId: opsAdministrationCells
+      security:
+        - opsSession: []
+      parameters:
+        - name: rat
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [GSM, UMTS, LTE, NR]
+        - $ref: '#/components/parameters/OpsLimit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/users:
+    get:
+      tags: [Ops users]
+      summary: List console accounts
+      operationId: opsUsers
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops users]
+      summary: Create a console account
+      operationId: opsCreateUser
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/users/{userId}:
+    patch:
+      tags: [Ops users]
+      summary: Change a user's role or enabled state
+      operationId: opsPatchUser
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/users/{userId}/sign-out:
+    post:
+      tags: [Ops users]
+      summary: End every session of a user
+      operationId: opsSignOutUser
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '204':
+          description: Sessions ended.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/users/{userId}/password:
+    post:
+      tags: [Ops users]
+      summary: Set a user's password
+      operationId: opsSetUserPassword
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '204':
+          description: Password changed.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/access/roles:
+    get:
+      tags: [Ops access]
+      summary: Role and permission matrix
+      operationId: opsRoles
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/sessions:
+    get:
+      tags: [Ops access]
+      summary: Active operator sessions
+      operationId: opsSessions
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/sessions/{sessionId}/sign-out:
+    post:
+      tags: [Ops access]
+      summary: End one operator session
+      operationId: opsSignOutSession
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Session ended.
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/ops/access/audit:
+    get:
+      tags: [Ops access]
+      summary: Operator audit trail
+      operationId: opsAudit
+      security:
+        - opsSession: []
+      parameters:
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, ALLOWED, DENIED, ERROR]
+            default: ALL
+        - name: actor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/policy:
+    get:
+      tags: [Ops access]
+      summary: Effective access policy, including whether break-glass is enabled
+      operationId: opsPolicy
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/clients:
+    get:
+      tags: [Ops access]
+      summary: Registered API clients
+      operationId: opsAccessClients
+      security:
+        - opsSession: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/break-glass:
+    get:
+      tags: [Ops access]
+      summary: Break-glass grants
+      operationId: opsBreakGlassGrants
+      security:
+        - opsSession: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, PENDING, REVIEWED]
+            default: ALL
+        - $ref: '#/components/parameters/OpsLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    post:
+      tags: [Ops access]
+      summary: Start a break-glass grant
+      description: The code is checked against a stored SHA-256 hash; it is never stored or logged.
+      operationId: opsStartBreakGlass
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+    delete:
+      tags: [Ops access]
+      summary: End the current break-glass grant
+      operationId: opsEndBreakGlass
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+
+  /v1/ops/access/break-glass/{grantId}/review:
+    post:
+      tags: [Ops access]
+      summary: Review a break-glass grant
+      operationId: opsReviewBreakGlass
+      security:
+        - opsSession: []
+          opsCsrf: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - name: grantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OpsObject'
+        '401':
+          $ref: '#/components/responses/OpsUnauthorised'
+        '403':
+          $ref: '#/components/responses/OpsForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: "An LBS client key. X-API-Key with the same key is accepted as an alternative."
+    adminKey:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+      description: The operator key from GMLC_ADMIN_KEY.
+    opsSession:
+      type: apiKey
+      in: cookie
+      name: GMLC_OPS
+      description: HttpOnly console session cookie set by POST /v1/ops/session.
+    opsCsrf:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: The CSRF token returned by the session call; required on unsafe ops methods.
+
+  parameters:
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 80
+    AdminKeyHeader:
+      name: X-Admin-Key
+      in: header
+      required: false
+      schema:
+        type: string
+    CsrfHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
+    RequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConsentIdPath:
+      name: consentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SubscriptionIdPath:
+      name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TrackedIdPath:
+      name: trackedId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ScheduleIdPath:
+      name: scheduleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit100:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+    OpsLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Range:
+      name: range
+      in: query
+      required: false
+      schema:
+        type: string
+        default: 24h
+    Bucket:
+      name: bucket
+      in: query
+      required: false
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: The request is not acceptable as sent.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorised:
+      description: A valid API key is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: No such resource, or it belongs to another tenant/client.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    QuotaExceeded:
+      description: The client has reached its allowance; see Retry-After.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OpsUnauthorised:
+      description: An operator session is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OpsForbidden:
+      description: CSRF token missing, or the role lacks the required permission.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OpsObject:
+      description: JSON body. The ops surface is intentionally coarse here; the console's generated view will replace this description.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem. `code` is stable where present.
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+          description: Stable identifier, for example PRIVACY_NOT_SATISFIED or LIMIT_OUT_OF_RANGE.
+      additionalProperties: true
+
+    Health:
+      type: object
+      properties:
+        service:
+          type: string
+          const: gmlc
+        version:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        database:
+          type: string
+          enum: [UP, DOWN]
+        capabilities:
+          type: string
+          enum: [UP, INVALID]
+        capabilityProfileVersion:
+          type: string
+        capabilitySource:
+          type: string
+          enum: [bundled, database]
+        status:
+          type: string
+          enum: [UP, DOWN]
+        reason:
+          type: string
+      required: [service, version, checkedAt, database, status]
+
+    CapabilityProfile:
+      type: object
+      description: Validated capability profile. Shape is owned by CapabilityProfileValidator.
+      additionalProperties: true
+
+    ClientMe:
+      type: object
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        tenantId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        purposes:
+          type: array
+          items:
+            type: string
+        maxAccuracyM:
+          type: integer
+        ratePerSecond:
+          type: integer
+        ratePerDay:
+          type: integer
+        ipAllowlist:
+          type: array
+          items:
+            type: string
+      required: [clientId, tenantId, name, purposes, maxAccuracyM, ratePerSecond, ratePerDay, ipAllowlist]
+
+    LocationRequestInput:
+      type: object
+      description: The subject is MSISDN, IMSI or both. The service decides which pair is sufficient.
+      properties:
+        msisdn:
+          type: string
+          pattern: '^[0-9]{7,15}$'
+        imsi:
+          type: string
+          pattern: '^[0-9]{14,15}$'
+        purpose:
+          type: string
+          pattern: '^[A-Z_]{3,32}$'
+        accuracyMeters:
+          type: integer
+          minimum: 1
+          maximum: 100000
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH]
+        idempotencyKey:
+          type: string
+          maxLength: 80
+      required: [purpose]
+
+    LocationView:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [RECEIVED, AUTHORISED, PRIVACY_CHECKED, ROUTED, REQUESTED, ANSWERED, TIMEOUT, FAILED, DELIVERED]
+        purpose:
+          type: string
+        priority:
+          type: string
+        accuracyRequestedM:
+          type: integer
+        errorCode:
+          type: string
+        errorDetail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        replayed:
+          type: boolean
+        result:
+          $ref: '#/components/schemas/LocationResult'
+
+    LocationResult:
+      type: object
+      description: |
+        The position and everything that qualifies it. A reader that takes only
+        latitude and longitude is reading a circle of `uncertaintyM` metres, no
+        older than `ageSeconds`, from `method`.
+      properties:
+        method:
+          type: string
+        shape:
+          type: string
+          enum: [POINT, CIRCLE, ELLIPSE, POLYGON, ARC]
+        latitude:
+          type: number
+        longitude:
+          type: number
+        uncertaintyM:
+          type: integer
+        confidence:
+          type: integer
+        ageSeconds:
+          type: integer
+        accuracyRequestedM:
+          type: integer
+        accuracyFulfilled:
+          type: boolean
+        servingCell:
+          type: string
+        engine:
+          type: string
+        positioningNode:
+          type: string
+        producedAt:
+          type: string
+          format: date-time
+        methodsAttempted:
+          type: array
+          items:
+            type: string
+
+    ConsentGrantRequest:
+      type: object
+      properties:
+        msisdn:
+          type: string
+          pattern: '^[0-9]{7,15}$'
+        imsi:
+          type: string
+          pattern: '^[0-9]{14,15}$'
+        purpose:
+          type: string
+          pattern: '^[A-Z_]{3,32}$'
+        channel:
+          type: string
+          pattern: '^[A-Za-z0-9_.:-]{2,16}$'
+        expiresAt:
+          type: string
+          format: date-time
+        evidence:
+          description: Free-form JSON stored verbatim.
+      required: [purpose]
+
+    ConsentView:
+      type: object
+      properties:
+        consentId:
+          type: string
+          format: uuid
+        subjectRef:
+          type: string
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, GRANTED, REVOKED, EXPIRED]
+        grantedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    CellPage:
+      type: object
+      properties:
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/CellSummary'
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+          format: int64
+      required: [cells, limit, offset, total]
+
+    CellSummary:
+      type: object
+      properties:
+        rat:
+          type: string
+        cellIdentity:
+          type: string
+        areaCode:
+          type: string
+        siteName:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        shape:
+          type: string
+        radiusM:
+          type: integer
+        dataQuality:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+
+    CellView:
+      allOf:
+        - $ref: '#/components/schemas/CellSummary'
+        - type: object
+          properties:
+            plmn:
+              type: string
+            cellCode:
+              type: string
+            antennaHeightM:
+              type: number
+            azimuthDeg:
+              type: integer
+            beamwidthDeg:
+              type: integer
+            coveragePolygon:
+              type: object
+              additionalProperties: true
+            pci:
+              type: integer
+            arfcn:
+              type: integer
+            cellType:
+              type: string
+            dataSource:
+              type: string
+            lastVerified:
+              type: string
+              format: date
+
+    CellInput:
+      type: object
+      properties:
+        rat:
+          type: string
+          enum: [GSM, UMTS, LTE, NR]
+        plmnMcc:
+          type: string
+        plmnMnc:
+          type: string
+        areaCode:
+          type: string
+        cellCode:
+          type: string
+        siteName:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        antennaHeightM:
+          type: number
+        azimuthDeg:
+          type: integer
+        beamwidthDeg:
+          type: integer
+        radiusM:
+          type: integer
+        pci:
+          type: integer
+        arfcn:
+          type: integer
+        cellType:
+          type: string
+        dataSource:
+          type: string
+        dataQuality:
+          type: integer
+        lastVerified:
+          type: string
+          format: date
+
+    CdrPage:
+      type: object
+      properties:
+        cdrs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CdrRow'
+        limit:
+          type: integer
+      required: [cdrs, limit]
+
+    CdrRow:
+      type: object
+      properties:
+        cdrId:
+          type: integer
+          format: int64
+        requestId:
+          type: string
+          format: uuid
+        resultCode:
+          type: string
+        recordStatus:
+          type: string
+          enum: [ANSWERED, FAILED, ABORTED, TIMEOUT]
+        ratType:
+          type: string
+        positioningMethod:
+          type: string
+        methodsAttempted:
+          type: array
+          items:
+            type: string
+        accuracyRequestedM:
+          type: integer
+        accuracyAchievedM:
+          type: integer
+        accuracyFulfilled:
+          type: boolean
+        responseTimeMs:
+          type: integer
+        ageOfLocationS:
+          type: integer
+        shape:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        uncertaintyM:
+          type: integer
+        confidence:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ClientRegistrationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]{2,63}$'
+        purposes:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            type: string
+            enum: [EMERGENCY, SAFETY, FLEET_MANAGEMENT, COMMERCIAL_LBS, IOT_ASSET, TEST]
+        maxAccuracyM:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          default: 5000
+        ratePerSecond:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 5
+        ratePerDay:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          default: 1000
+        ipAllowlist:
+          type: array
+          items:
+            type: string
+      required: [name, purposes]
+
+    ClientRegistrationResponse:
+      type: object
+      description: The only response that contains the API key.
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        tenantId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        purposes:
+          type: array
+          items:
+            type: string
+        maxAccuracyM:
+          type: integer
+        ratePerSecond:
+          type: integer
+        ratePerDay:
+          type: integer
+        ipAllowlist:
+          type: array
+          items:
+            type: string
+        apiKey:
+          type: string
+        apiKeyNote:
+          type: string
+      required: [clientId, tenantId, name, purposes, apiKey]
+
+    LastKnownView:
+      type: object
+      properties:
+        found:
+          type: boolean
+        reason:
+          type: string
+        trackedId:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+        dataSource:
+          type: string
+          enum: [LAB_SIM, BENCH, REAL]
+        fix:
+          $ref: '#/components/schemas/Fix'
+      required: [found, dataSource]
+
+    Fix:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        resultId:
+          type: string
+          format: uuid
+        method:
+          type: string
+        methodsAttempted:
+          type: array
+          items:
+            type: string
+        shape:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        uncertaintyM:
+          type: integer
+        confidence:
+          type: integer
+        ageSeconds:
+          type: integer
+        accuracyRequestedM:
+          type: integer
+        accuracyFulfilled:
+          type: boolean
+        servingCell:
+          type: string
+        engine:
+          type: string
+        positioningNode:
+          type: string
+        producedAt:
+          type: string
+          format: date-time
+
+    OpsLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        totp:
+          type: string
+          pattern: '^[0-9]{6}$'
+      required: [username, password, totp]
+
+    OpsSessionView:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, OPERATOR, ANALYST, VIEWER]
+        permissions:
+          type: array
+          items:
+            type: string
+            enum:
+              - VIEW_DASHBOARD
+              - VIEW_REQUESTS
+              - ACK_ALERTS
+              - LOCATE
+              - REVEAL_IDENTIFIERS
+              - VIEW_RAW_SIGNALLING
+              - EXPORT_CDR
+              - MANAGE_GEOFENCES
+              - MANAGE_NOTIFIERS
+              - MANAGE_CLIENTS
+              - MANAGE_CONFIG
+              - MANAGE_USERS
+              - MANAGE_LICENCE
+        csrfToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        environment:
+          type: string
+        dataSource:
+          type: string
+        breakGlass:
+          type: boolean
+        breakGlassExpiresAt:
+          type: string
+          format: date-time
