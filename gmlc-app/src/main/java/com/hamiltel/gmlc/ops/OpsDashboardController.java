@@ -1,6 +1,7 @@
 package com.hamiltel.gmlc.ops;
 
 import com.hamiltel.gmlc.audit.AuditTrail;
+import com.hamiltel.gmlc.config.ConfigService;
 import com.hamiltel.gmlc.config.OpsAlertProperties;
 import com.hamiltel.gmlc.config.OpsProperties;
 import com.hamiltel.gmlc.location.LocationResultRepository;
@@ -51,18 +52,20 @@ public class OpsDashboardController {
     private final AuditTrail audit;
     private final OpsProperties properties;
     private final OpsAlertProperties alertProperties;
+    private final ConfigService config;
 
     public OpsDashboardController(OpsDashboardRepository dashboard,
                                   LocationResultRepository results,
                                   OpsAlertRepository alerts, AuditTrail audit,
                                   OpsProperties properties,
-                                  OpsAlertProperties alertProperties) {
+                                  OpsAlertProperties alertProperties, ConfigService config) {
         this.dashboard = dashboard;
         this.results = results;
         this.alerts = alerts;
         this.audit = audit;
         this.properties = properties;
         this.alertProperties = alertProperties;
+        this.config = config;
     }
 
     @GetMapping("/summary")
@@ -86,7 +89,8 @@ public class OpsDashboardController {
                                         / (point.answered() + point.failed())))
                 .toList();
 
-        Integer slo = properties.sloP95Ms() > 0 ? properties.sloP95Ms() : null;
+        int sloValue = config.intValue(context.tenantId(), "alerts.sloP95Ms");
+        Integer slo = sloValue > 0 ? sloValue : null;
 
         return new Summary(current.key(), current.from(), current.to(),
                 properties.normalisedEnvironment(), properties.dataSourceLabel(),

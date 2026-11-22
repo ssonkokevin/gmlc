@@ -3,6 +3,7 @@ package com.hamiltel.gmlc.ops;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hamiltel.gmlc.audit.AuditTrail;
+import com.hamiltel.gmlc.config.ConfigService;
 import com.hamiltel.gmlc.config.OpsAlertProperties;
 import com.hamiltel.gmlc.config.OpsProperties;
 import com.hamiltel.gmlc.diameter.DiameterProperties;
@@ -43,11 +44,12 @@ public class OpsHealthController {
     private final M3uaProperties m3ua;
     private final AuditTrail audit;
     private final ObjectMapper mapper;
+    private final ConfigService config;
 
     public OpsHealthController(PeerHealth health, OpsAlertRepository alerts,
                                OpsAlertProperties alertProperties, OpsProperties ops,
                                DiameterProperties diameter, M3uaProperties m3ua,
-                               AuditTrail audit, ObjectMapper mapper) {
+                               AuditTrail audit, ObjectMapper mapper, ConfigService config) {
         this.health = health;
         this.alerts = alerts;
         this.alertProperties = alertProperties;
@@ -56,17 +58,18 @@ public class OpsHealthController {
         this.m3ua = m3ua;
         this.audit = audit;
         this.mapper = mapper;
+        this.config = config;
     }
 
     @GetMapping("/peers")
     @OpsRequires(OpsPermission.VIEW_DASHBOARD)
-    public PeerPage peers() {
+    public PeerPage peers(@OpsCurrentSession OpsContext context) {
         PeerView diameterPeer = view(PeerHealth.DIAMETER, diameter.configured(),
                 diameter.peerHost(), diameter.peerPort());
         PeerView m3uaPeer = view(PeerHealth.M3UA, m3ua.configured(),
                 m3ua.host(), m3ua.port());
-        return new PeerPage(ops.normalisedEnvironment(), ops.dataSourceLabel(), settings(),
-                List.of(diameterPeer, m3uaPeer));
+        return new PeerPage(ops.normalisedEnvironment(), ops.dataSourceLabel(),
+                settings(context.tenantId()), List.of(diameterPeer, m3uaPeer));
     }
 
     @GetMapping("/alerts")
@@ -145,12 +148,15 @@ public class OpsHealthController {
                 alert.acknowledgedAt() != null);
     }
 
-    private AlertSettings settings() {
-        Integer slo = ops.sloP95Ms() > 0 ? ops.sloP95Ms() : null;
+    private AlertSettings settings(long tenantId) {
+        int sloValue = config.intValue(tenantId, "alerts.sloP95Ms");
+        Integer slo = sloValue > 0 ? sloValue : null;
         return new AlertSettings(alertProperties.enabled(), alertProperties.evalSeconds(),
-                alertProperties.windowMinutes(), alertProperties.minFinished(),
-                alertProperties.errorRateThreshold(), alertProperties.peerFailureThreshold(),
-                alertProperties.cellGapThreshold(), slo);
+                config.intValue(tenantId, "alerts.windowMinutes"),
+                config.intValue(tenantId, "alerts.minFinished"),
+                config.doubleValue(tenantId, "alerts.errorRateThreshold"),
+                config.intValue(tenantId, "alerts.peerFailureThreshold"),
+                config.intValue(tenantId, "alerts.cellGapThreshold"), slo);
     }
 
     private static OpsAlertRepository.State parseState(String value) {

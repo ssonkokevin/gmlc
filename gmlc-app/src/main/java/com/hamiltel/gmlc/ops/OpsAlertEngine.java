@@ -1,7 +1,7 @@
 package com.hamiltel.gmlc.ops;
 
+import com.hamiltel.gmlc.config.ConfigService;
 import com.hamiltel.gmlc.config.OpsAlertProperties;
-import com.hamiltel.gmlc.config.OpsProperties;
 import com.hamiltel.gmlc.diameter.DiameterProperties;
 import com.hamiltel.gmlc.ss7.M3uaProperties;
 import org.slf4j.Logger;
@@ -25,8 +25,10 @@ import java.util.Set;
  * wrapper has seen consecutive failures, which is evidence, not a guess. An
  * evaluation that observes nothing wrong closes what it previously opened.
  *
- * <p>Thresholds live in {@code gmlc.ops.alerts}; the latency objective is the
- * deployment's own SLO, and no latency alert exists while that SLO is zero.
+ * <p>Thresholds default from {@code gmlc.ops.alerts} and may be overridden by
+ * the versioned console configuration, which is read for the tenant being
+ * evaluated. The latency objective is the deployment's own SLO, and no latency
+ * alert exists while that objective is zero.
  */
 @Component
 public class OpsAlertEngine {
@@ -44,21 +46,21 @@ public class OpsAlertEngine {
     private final PeerHealth peerHealth;
     private final DiameterProperties diameter;
     private final M3uaProperties m3ua;
-    private final OpsProperties ops;
     private final OpsAlertProperties properties;
+    private final ConfigService config;
 
     public OpsAlertEngine(JdbcTemplate jdbc, OpsDashboardRepository dashboard,
                           OpsAlertRepository alerts, PeerHealth peerHealth,
-                          DiameterProperties diameter, M3uaProperties m3ua, OpsProperties ops,
-                          OpsAlertProperties properties) {
+                          DiameterProperties diameter, M3uaProperties m3ua,
+                          OpsAlertProperties properties, ConfigService config) {
         this.jdbc = jdbc;
         this.dashboard = dashboard;
         this.alerts = alerts;
         this.peerHealth = peerHealth;
         this.diameter = diameter;
         this.m3ua = m3ua;
-        this.ops = ops;
         this.properties = properties;
+        this.config = config;
     }
 
     @Scheduled(fixedDelayString = "${gmlc.ops.alerts.eval-seconds:60}",
@@ -87,21 +89,28 @@ public class OpsAlertEngine {
 
     /** Package-visible so a test can evaluate one tenant at a chosen instant. */
     void evaluate(long tenantId, Instant now) {
-        Instant from = now.minus(Duration.ofMinutes(properties.windowMinutes()));
+        long windowMinutes = config.intValue(tenantId, "alerts.windowMinutes");
+        int minFinished = config.intValue(tenantId, "alerts.minFinished");
+        double errorRateThreshold = config.doubleValue(tenantId, "alerts.errorRateThreshold");
+        int peerFailureThreshold = config.intValue(tenantId, "alerts.peerFailureThreshold");
+        long cellGapThreshold = config.intValue(tenantId, "alerts.cellGapThreshold");
+        int slo = config.intValue(tenantId, "alerts.sloP95Ms");
+
+        Instant from = now.minus(Duration.ofMinutes(windowMinutes));
         Set<String> open = new LinkedHashSet<>();
 
-        peerDown(tenantId, PeerHealth.DIAMETER, PeerHealth.DIAMETER, open);
-        peerDown(tenantId, PeerHealth.M3UA, PeerHealth.M3UA, open);
+        peerDown(tenantId, PeerHealth.DIAMETER, PeerHealth.DIAMETER, peerFailureThreshold, open);
+        peerDown(tenantId, PeerHealth.M3UA, PeerHealth.M3UA, peerFailureThreshold, open);
 
         OpsDashboardRepository.Totals totals = dashboard.totals(tenantId, from, now);
-        errorRate(tenantId, totals, open);
-        latency(tenantId, totals, open);
+        errorRate(tenantId, totals, errorRateThreshold, windowMinutes, minFinished, open);
+        latency(tenantId, totals, slo, minFinished, open);
 
         long cellGaps = dashboard.cellGapFailures(tenantId, from, now);
-        if (cellGaps >= properties.cellGapThreshold()) {
+        if (cellGaps >= cellGapThreshold) {
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("requests", cellGaps);
-            detail.put("windowMinutes", properties.windowMinutes());
+            detail.put("windowMinutes", windowMinutes);
             alerts.raise(tenantId, CELL_GAP, OpsAlertRepository.Kind.CELL_DB_GAP,
                     OpsAlertRepository.Severity.WARNING,
                     cellGaps + " request(s) failed because the cell plan cannot answer", detail);
@@ -111,12 +120,13 @@ public class OpsAlertEngine {
         alerts.closeExcept(tenantId, open);
     }
 
-    private void peerDown(long tenantId, String face, String label, Set<String> open) {
+    private void peerDown(long tenantId, String face, String label, int threshold,
+                          Set<String> open) {
         if (!configured(face)) {
             return;
         }
         PeerHealth.Snapshot snapshot = peerHealth.snapshot(face);
-        if (snapshot.consecutiveFailures() < properties.peerFailureThreshold()) {
+        if (snapshot.consecutiveFailures() < threshold) {
             return;
         }
         Map<String, Object> detail = new LinkedHashMap<>();
@@ -133,20 +143,22 @@ public class OpsAlertEngine {
         open.add(key);
     }
 
-    private void errorRate(long tenantId, OpsDashboardRepository.Totals totals, Set<String> open) {
-        if (totals.finished() < properties.minFinished() || totals.successRate() == null) {
+    private void errorRate(long tenantId, OpsDashboardRepository.Totals totals,
+                           double threshold, long windowMinutes, int minFinished,
+                           Set<String> open) {
+        if (totals.finished() < minFinished || totals.successRate() == null) {
             return;
         }
         double failureRate = 1 - totals.successRate();
-        if (failureRate < properties.errorRateThreshold()) {
+        if (failureRate < threshold) {
             return;
         }
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("finished", totals.finished());
         detail.put("failed", totals.failed());
         detail.put("failureRate", round(failureRate));
-        detail.put("threshold", properties.errorRateThreshold());
-        detail.put("windowMinutes", properties.windowMinutes());
+        detail.put("threshold", threshold);
+        detail.put("windowMinutes", windowMinutes);
         alerts.raise(tenantId, ERROR_RATE, OpsAlertRepository.Kind.ERROR_RATE,
                 OpsAlertRepository.Severity.WARNING,
                 String.format(Locale.ROOT, "%.1f%% of finished requests failed", failureRate * 100),
@@ -154,9 +166,9 @@ public class OpsAlertEngine {
         open.add(ERROR_RATE);
     }
 
-    private void latency(long tenantId, OpsDashboardRepository.Totals totals, Set<String> open) {
-        int slo = ops.sloP95Ms();
-        if (slo <= 0 || totals.answered() < properties.minFinished()
+    private void latency(long tenantId, OpsDashboardRepository.Totals totals, int slo,
+                         int minFinished, Set<String> open) {
+        if (slo <= 0 || totals.answered() < minFinished
                 || totals.p95ResponseMs() == null || totals.p95ResponseMs() <= slo) {
             return;
         }

@@ -3,7 +3,7 @@ package com.hamiltel.gmlc.location;
 import com.hamiltel.gmlc.audit.AuditTrail;
 import com.hamiltel.gmlc.cdr.CdrRepository;
 import com.hamiltel.gmlc.client.ApiClient;
-import com.hamiltel.gmlc.config.GmlcProperties;
+import com.hamiltel.gmlc.config.ConfigService;
 import com.hamiltel.gmlc.consent.ConsentService;
 import com.hamiltel.gmlc.diameter.SignallingException;
 import com.hamiltel.gmlc.geofence.GeofenceEvaluator;
@@ -47,13 +47,13 @@ public class LocationRequestService {
     private final LocationLocator locator;
     private final LocationResultRepository results;
     private final GeofenceEvaluator geofences;
-    private final GmlcProperties properties;
+    private final ConfigService config;
 
     public LocationRequestService(LocationRequestRepository requests, ConsentService consents,
                                   SubscriberValidator validator, SubjectRefHasher hasher,
                                   CdrRepository cdrs, AuditTrail audit, LocationLocator locator,
                                   LocationResultRepository results, GeofenceEvaluator geofences,
-                                  GmlcProperties properties) {
+                                  ConfigService config) {
         this.requests = requests;
         this.consents = consents;
         this.validator = validator;
@@ -63,7 +63,7 @@ public class LocationRequestService {
         this.locator = locator;
         this.results = results;
         this.geofences = geofences;
-        this.properties = properties;
+        this.config = config;
     }
 
     public Outcome create(ApiClient client, LocationRequestInput input, String headerIdempotencyKey) {
@@ -137,7 +137,7 @@ public class LocationRequestService {
         try {
             estimate = locator.locate(new LocationLocator.Query(client.tenantId(),
                     stored.msisdn(), stored.imsi(), stored.accuracyRequestedM(),
-                    stored.purpose(), properties.lcsClientName()));
+                    stored.purpose(), config.textValue(client.tenantId(), "lcs.clientName")));
         } catch (SignallingException e) {
             // With no peer configured nothing can source a position, which is
             // the same fact NO_LCS_SOURCE already names to clients.

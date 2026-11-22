@@ -44,7 +44,8 @@ The split is recorded with its reasoning in the core repository under
 | Automated tracking schedules: window, interval floor, run log, manual run | **Built and tested** (phase C5b) |
 | Notifier channels: sealed signing secrets, signed WEBHOOK delivery only | **Built and tested** (phase C5b); EMAIL, TELEGRAM and SLACK answer `NOTIFIER_NOT_AVAILABLE` |
 | Console Tracking screen: subjects, stored-result trails, schedules, channels | **Built and tested** (phase C5c) |
-| Console Administration (configuration, four-eyes) | Not yet (phase C6) |
+| Configuration store: versioned items, reasons, audit, four-eyes in production | **Built and tested** (phase C6a) |
+| Console Administration (configuration, users, four-eyes screens) | Not yet (phase C6c) |
 | Container build | Written, **unverified** - no Docker on the build host |
 
 Nothing in this repository has talked to a real operator network.
@@ -142,6 +143,12 @@ GET  /v1/ops/tracking/channels/{id}        one channel without its secret       
 POST /v1/ops/tracking/channels             create; returns the secret once       (session, MANAGE_NOTIFIERS + CSRF)
 PATCH /v1/ops/tracking/channels/{id}       enable or disable                     (session, MANAGE_NOTIFIERS + CSRF)
 DELETE /v1/ops/tracking/channels/{id}      remove; refused while in use          (session, MANAGE_NOTIFIERS + CSRF)
+
+GET  /v1/ops/configuration                 items with value, version and source  (session, MANAGE_CONFIG)
+GET  /v1/ops/configuration/changes?status= change trail, newest first            (session, MANAGE_CONFIG)
+POST /v1/ops/configuration/changes         request a change and give a reason     (session, MANAGE_CONFIG + CSRF)
+POST /v1/ops/configuration/changes/{id}/approve  a second approver applies it    (session, MANAGE_CONFIG + CSRF)
+POST /v1/ops/configuration/changes/{id}/reject   decline it with a note          (session, MANAGE_CONFIG + CSRF)
 
 POST /v1/admin/clients   register a client and mint its API key            (X-Admin-Key)
 POST /v1/admin/cells     insert or update one cell                         (X-Admin-Key)
@@ -526,6 +533,27 @@ hint. It returns `found: false` with `NO_LOCATION_YET`, `NO_CONSENT` (consent is
 re-checked on every read, so a revocation takes effect) or `TRACKING_DISABLED`.
 A found answer carries `dataSource` - `REAL`, `BENCH` or `LAB_SIM` from the
 deployment's environment - beside the full fix envelope.
+
+**Configuration (phase C6a).** A configuration item has one live value and a
+version; every change is a row carrying the value it replaces, the value
+proposed, the reason and who asked. The console may change six alert
+thresholds (window, minimum sample, error rate, peer failures, cell-plan gaps,
+p95 objective) and the LCS client name presented on the signalling. The
+thresholds are read by the alert engine, the dashboard and the peer-health page
+at run time; the client name is read on every locate. Applying checks the base
+version, so a change raised against a value that has since moved answers
+`CONFIG_VERSION_CONFLICT` instead of overwriting it, and only one request per
+item may wait at a time.
+
+In a `PRODUCTION` deployment a change to the LCS client name waits as
+`PENDING` until a second operator holding `MANAGE_CONFIG` approves it; the
+operator who raised it cannot approve it, and that refusal is audited. Alert
+thresholds do not touch the signalling and apply immediately in every
+environment, still with a reason, a version and an audit row. Decisions are
+append-only: approving updates the row it decides and never deletes one. Peers
+and routing, retention and the licence are environment-managed and are not in
+the table at all, because a row here would claim an effect the running process
+does not honour.
 
 **Console Tracking (phase C5c).** The screen keeps four tabs. Subjects adds a
 tracked subject (client, purpose, one MSISDN or IMSI) and lists the roster with
